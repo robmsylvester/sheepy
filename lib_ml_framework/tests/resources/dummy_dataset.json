@@ -1,0 +1,43 @@
+{
+  "group_id": "0",
+  "labels": {
+    "synthetic_label": {
+      "0": {
+        "context": [],
+        "difficult": "",
+        "notes": "synthetic"
+      },
+      "5": {
+        "context": [],
+        "difficult": "",
+        "notes": "synthetic"
+      }
+    }
+  },
+  "features": {
+    "0": {
+      "id": "pos_162",
+      "text": "this is dummy test positive 1"
+    },
+    "1": {
+      "id": "345324523452345_234234",
+      "text": "this is dummy test negative 1"
+    },
+    "2": {
+      "id": "567567867867_2341234",
+      "text": "this is dummy test negative 2"
+    },
+    "3": {
+      "id": "345565463456_234234",
+      "text": "this is dummy test negative 3"
+    },
+    "4": {
+      "id": "5307234234234_571",
+      "text": "this is dummy test negative 4"
+    },
+    "5": {
+      "id": "pos_5",
+      "text": "this is dummy test positive 2"
+    }
+  }
+}

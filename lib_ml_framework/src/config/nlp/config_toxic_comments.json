@@ -1,0 +1,71 @@
+{
+    "experiment": {
+        "project_name": "test_sentiment_three",
+        "description": "Testing ML Framework on Synthetic Decisions",
+        "ticket": "MI-3128",
+        "dataset": "toxic_comments",
+        "version": 0,
+        "nlp": true,
+        "data_module": "toxic_comment_data_module",
+        "model": "multilabel_transformer_classifier",
+        "encoder_model": "bert-base-uncased",
+        "restore_from_checkpoint": false
+    },
+    "hparams": {
+        "label": [
+            "toxic",
+            "severe_toxic",
+            "obscene",
+            "threat",
+            "insult",
+            "identity_hate"
+        ],
+        "text": "comment_text",
+        "disable_weight_scale": false,
+        "nr_frozen_epochs": 1,
+        "loader_workers": 8,
+        "n_prev_utterances": 0,
+        "n_next_utterances": 0,
+        "context_labels": "remove",
+        "rich_labels": [],
+        "batch_size": 32,
+        "num_dense_layers": 3,
+        "dense_layer_scale_factor": 0.8,
+        "save_epoch_count": 4,
+        "num_epochs": 3,
+        "num_epochs_decay": 100,
+        "accumulate_grad_batches": 1,
+        "gradient_clip_val": 1,
+        "dropout_p": 0.5,
+        "early_stop_enabled": false,
+        "learning_rate": 3e-5,
+        "encoder_learning_rate": 1e-5,
+        "train_ratio": 0.90,
+        "validation_ratio": 0.1,
+        "test_ratio": 0.0,
+        "num_labels": 6
+    },
+    "validation": {
+        "check_val_every_n_epoch": 1,
+        "val_check_interval": 0.5,
+        "save_top_k": 1,
+        "gradient_log_steps": 100,
+        "param_log_steps": null
+    },
+    "sweep": {
+        "method": "grid",
+        "metric": {
+            "name": "val_acc",
+            "goal": "maximize"
+        },
+        "parameters": {
+            "num_dense_layers": {
+                "values": [
+                    2,
+                    4,
+                    6
+                ]
+            }
+        }
+    }
+}

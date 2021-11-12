@@ -1,0 +1,53 @@
+{
+    "experiment": {
+        "project_name": "str, Uppermost directory for Weights and Biases to store all experiments. Distinct for each project you have.",
+        "description": "str, A Description of the Experiment",
+        "dataset": "str, The name of the dataset that you are loading. This will be used to help create directory structures for W&B results",
+        "version": "str or float or int, The version of the experiment",
+        "nlp": "bool, If enabled will instantiate additional utilities for NLP experiments. see base_experiment.py",
+        "data_module": "str, The name of the data module that you will use. see module_mappings.py",
+        "model": "str, The name of the model that you will use. see module_mappings.py",
+        "encoder_model": "str, Name of encoder model used in transformers library. for example, 'bert-base-uncased' ",
+        "restore_from_checkpoint": "bool, If true then searches for directory structure from above strings for a torch model checkpoint"
+    },
+    "hparams": {
+        "label": "str, Label column or key used in data module to search for unique labels",
+        "text": "str, Volumn or key used i data module that holds main text with which to run inference. ",
+        "disable_weight_scale": "bool, If True, then weights of classes in cross entropy loss are both 1",
+        "nr_frozen_epochs": "int, Number of epochs to keep the encoder model frozen. 0 or 1 is a good value",
+        "loader_workers": "int, Number of subprocesses to use for data loading. 0 means that the data will be loaded in the main process. I like 8.",
+        "n_prev_utterances": "int, number of text windows to look before when considering windowed classifier. concatenates semantic represenntations before FC layer",
+        "n_next_utterances": "int, number of text windows to look before when considering windowed classifier. concatenates semantic represenntations before FC layer",
+        "positive_resample_rate": "int, specifies the rate to re-sample positives in the dataset. 1 will result in not resampling. An integer n that is greater than 1 will result in (n-1) duplicates of those positives.",
+        "batch_size": "int, batch size for training",
+        "num_dense_layers": "int, nunmber of dense layers for FC head after transformer classifier",
+        "dense_layer_scale_factor": "float, scale factor from FC layer n to FC layer n+1",
+        "save_epoch_count": "int, only now used in image model. controls minimum epoch number to start saving",
+        "num_epochs": "int, number of training epochs",
+        "num_epochs_decay": "int, number of epochs to start decaying learning rate",
+        "accumulate_grad_batches": "int, number of batches to run to accumulate gradients. 1 is safe",
+        "gradient_clip_val": "int, l2-norm gradient max clip to control stability. 1 is good. maybe 2 or 3 but no higher usually",
+        "dropout_p": "float, dropout probability in FC layers. not keep probability",
+        "early_stop_enabled": "bool, if True, will early stop depending upon defined condition",
+        "learning_rate": "float, the starting learning rate of the learner's optimizer",
+        "encoder_learning_rate": "float, the encoder learning rate. should be small",
+        "train_ratio": "float, ratio of training data",
+        "validation_ratio": "float, ratio of validation data",
+        "test_ratio": "float, ratio of testing data",
+        "num_labels": "int, number of expected labels in your dataset"
+    },
+    "validation": {
+        "metric": "the metric you are optimizing, directly passed to the ModelCheckpoint. Must be returned in self.log of validation_epoch_end",
+        "metric_goal": "min or max, depending on the metric",
+        "check_val_every_n_epoch": "int, how many epochs to run before running validation set",
+        "val_check_interval": "float, if running validation more than once per epoch, pass a float here such that it will run 1/x times per epoch",
+        "save_top_k": "int, number of best models to save",
+        "gradient_log_steps": "int, how many steps to run before logging accumulated gradient steps. 100 is good",
+        "param_log_steps": "int, unused. null is good here now. see pytorch docs"
+    },
+    "sweep": {
+        "name": "str, name of sweep.",
+        "method": "str, should be grid or random",
+        "parameters": "object, see WandB docs"
+    }
+}
