@@ -34,19 +34,23 @@ def read_csv(path: str,
     return df.astype(str)
 
 def read_csv_text_classifier(path: str,
+                             encoding: str="utf-8",
                              evaluate: bool = False,
                              label_cols: Union[str, List[str]] = "label",
                              text_col: str = "text",
-                             additional_cols: List[str] = None) -> pd.DataFrame:
+                             additional_cols: List[str] = None,
+                             names: List[str] = None) -> pd.DataFrame:
     """
     Reads a full comma-separated value file that stores, at the minimum, a text column as well as a label column.
 
     Arguments:
         path (str): path to a csv file.
+        encoding (str): type of encoding of csv
         evaluate (bool): prepares data for the evaluation mode instead of the train/val/test mode
         label_cols (list or str): name of label column(s) in csv.
         text_col (str): name of text column in csv if it exists.
-        additional_cols (list(str)): any additional columns to grab
+        additional_cols (list(str)): any additional columns to grab.
+        names (str): If the header is 0, then we need to pass column names to the csv
 
     Returns:
         pd.DataFrame: A pandas dataframe containing just the text column and label column, as well as any additional columns passed
@@ -57,7 +61,10 @@ def read_csv_text_classifier(path: str,
         1. If the text column does not exist in the dataframe, OR
         2. If any of the label column does not exist in the dataframe and we're not in evaluation mode
     """
-    df = pd.read_csv(path)
+    if names is None:
+        df = pd.read_csv(path, encoding=encoding)
+    else:
+        df = pd.read_csv(path, encoding=encoding, names=names)
     labels = deepcopy(label_cols)
 
     if isinstance(labels, str):
@@ -197,7 +204,6 @@ def split_dataframe(df: pd.DataFrame, train_ratio: float, validation_ratio: floa
     test = df.loc[first_test_index:]
 
     return train, validation, test
-
 
 def write_csv_dataset(df: pd.DataFrame, output_path: str):
     if os.path.isdir(output_path):

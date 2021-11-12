@@ -1,10 +1,12 @@
 import argparse
 import pandas as pd
 import os
+from tqdm import tqdm
 from typing import List
 from pytorch_lightning import LightningDataModule
 from lib.src.data_modules.base_csv_data_module import BaseCSVDataModule
 from lib.src.common.collate import single_text_collate_function, CollatedSample
+from lib.src.common.df_ops import read_csv_text_classifier
 from torchnlp.encoders import LabelEncoder
 
 class TweetSentimentDataModule(BaseCSVDataModule):
@@ -15,6 +17,31 @@ class TweetSentimentDataModule(BaseCSVDataModule):
 
     def __init__(self, args):
         super().__init__(args)
+        self.tweet_sentiment_filename = "training.1600000.processed.noemoticon.csv"
+
+    def prepare_data(self):
+        "Verifies the data exists, and reads it from the filesystem"
+        if not os.path.exists(self.args.data_dir):
+            os.makedirs(self.args.data_dir)
+
+        extracted_dataset = os.path.join(self.args.data_dir, self.tweet_sentiment_filename)
+        
+        if not os.path.exists(extracted_dataset):
+            raise ValueError("The Sentiment140 dataset is not public, but you can access it on Kaggle. Login and download the dataset from https://www.kaggle.com/kazanova/sentiment140/download, unzip this file, and place the .csv under {}".format(self.args.data_dir))
+
+        self.logger.info("Reading dataset...")
+        cols = ['sentiment','id','date','query_string','user','text']
+        self.dataframes = [read_csv_text_classifier(extracted_dataset,
+            encoding='latin-1',
+            evaluate=self.evaluate,
+            label_cols=self.label_col,
+            text_col=self.text_col, 
+            names=cols)]
+
+        self.dataframes[0]["sentiment"] = self.dataframes[0]["sentiment"].map({'4': 'positive', '0': 'negative'})
+        
+        #We will shuffle the dataset as well since it orders all the negatives first and positives at the end
+        self.dataframes[0] = self.dataframes[0].sample(frac=1).reset_index(drop=True)
 
     def prepare_sample(self, sample: list) -> CollatedSample:
         """
@@ -49,7 +76,7 @@ class TweetSentimentDataModule(BaseCSVDataModule):
         train_labels_list = self._train_dataset[self.label_col].unique(
         ).tolist()
         assert len(train_labels_list) == self.args.hparams["num_labels"], "Passed {} to num_labels arg but see {} unique labels in train dataset".format(
-            self.args.num_labels, len(train_labels_list))
+            self.args.hparams["num_labels"], len(train_labels_list))
         self.label_encoder = LabelEncoder(
             train_labels_list,
             reserved_labels=[])

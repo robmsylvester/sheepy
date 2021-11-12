@@ -3,7 +3,6 @@ import pandas as pd
 import os
 import requests
 import zipfile
-from random import shuffle
 from typing import List, Tuple
 from pytorch_lightning import LightningDataModule
 from lib.src.data_modules.base_csv_data_module import BaseCSVDataModule
@@ -94,7 +93,7 @@ class SmsSpamDataModule(BaseCSVDataModule):
         train_labels_list = self._train_dataset[self.label_col].unique(
         ).tolist()
         assert len(train_labels_list) == self.args.hparams["num_labels"], "Passed {} to num_labels arg but see {} unique labels in train dataset".format(
-            self.args.num_labels, len(train_labels_list))
+            self.args.hparams["num_labels"], len(train_labels_list))
         self.label_encoder = LabelEncoder(
             train_labels_list,
             reserved_labels=[])
