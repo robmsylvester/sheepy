@@ -136,3 +136,9 @@ wandb/*
 
 #VS Code files
 .vscode/
+
+#model outputs
+lib_ml_framework/outputs
+
+#resources for datasets
+lib_ml_framework/resources

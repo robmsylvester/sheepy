@@ -12,7 +12,7 @@ def get_parser() -> argparse.ArgumentParser:
                         help="Names of the directories or individual csv files.")
     parser.add_argument("--by_col", type=str, default='synthetic_decisions_v1_score_percentile',
                         help="Names of the directories or files.")
-    parser.add_argument("--extra_col", type=str, nargs="+", default=['utterance', 'utterance_id'],
+    parser.add_argument("--extra_col", type=str, nargs="+", default=['text_sample', 'text_sample_id'],
                         help="Column names to include into the output")
     parser.add_argument("-n", "--num", type=int, default=100,
                         help="Number of records to be included in the report, "

@@ -2,9 +2,9 @@ import pytest
 import torch
 from torchnlp.encoders import LabelEncoder
 from torchnlp.utils import collate_tensors
-from lib_ml_framework.src.common.collate import single_text_collate_function, windowed_text_collate_function, _concatenate_utterances
+from lib_ml_framework.src.common.collate import single_text_collate_function, windowed_text_collate_function, _concatenate_text_samples
 from lib_ml_framework.src.common.tokenizer import Tokenizer
-from lib_ml_framework.src.data_modules.base_data_module import BaseClassificationDataModule as dm
+from lib_ml_framework.src.data_modules.base_data_module import BaseDataModule as dm
 
 
 @pytest.fixture
@@ -247,9 +247,9 @@ def test_multi_label_single_text_collate(multilabel_batch_sample, tokenizer):
     #Test sample ids match
     assert torch.all(torch.eq(tensors[3], torch.Tensor([1,2])))
 
-def test_concatenate_utterances(windowed_batch_sample):
+def test_concatenate_text_samples(windowed_batch_sample):
     collated = collate_tensors(windowed_batch_sample)
-    concatenated = _concatenate_utterances(
+    concatenated = _concatenate_text_samples(
         collated,
         ['text_prev_3', 'text_prev_2', 'text_prev_1', 'text', 'text_next_1', 'text_next_2', 'text_next_3'],
         default_separator="."

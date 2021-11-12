@@ -1,8 +1,6 @@
 import pytest
 
-from lib_ml_framework.src.common.df_ops import read_csv, read_csv_text_classifier, \
-    read_json_text_classifier, window_text, resample_positives, \
-    resample_multilabel_positives, SOURCE_FILE
+from lib_ml_framework.src.common.df_ops import read_csv, read_csv_text_classifier, window_text, resample_positives, resample_multilabel_positives, SOURCE_FILE
 
 def test_read_csv_text_classifier():
     path = 'tests/resources/dummy_dataset.csv'
@@ -57,7 +55,7 @@ def test_window_csv():
 
     df = read_csv(path, column_list)
 
-    df = window_text(df, text_col=text_col, n_prev_utterances=2, n_next_utterances=2)
+    df = window_text(df, text_col=text_col, n_prev_text_samples=2, n_next_text_samples=2)
     assert (text_col+'_prev_1' in df.columns)
     assert (text_col+'_next_1' in df.columns)
     assert (df.loc[0, text_col+'_prev_1'] == "")

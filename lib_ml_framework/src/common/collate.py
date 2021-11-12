@@ -35,7 +35,7 @@ def _get_sample_list(samples: List[str], sample_size: int=None) -> List[str]:
     chosen = random.sample(samples, k=sample_size)
     return chosen
 
-def _concatenate_utterances(sample: dict, keys: List[str], default_separator: str=".") -> List[str]:
+def _concatenate_text_samples(sample: dict, keys: List[str], default_separator: str=".") -> List[str]:
     """Given a sample dicitonary, return a single string of concatenated strings, each of which is a key
     in the list 'keys' for the dictionary. the dictionary, at each of these keys, will have a list of values
     that is as long as the batch length in the current iteration.
@@ -168,7 +168,7 @@ def windowed_text_collate_function(sample: list,
         additional_text_cols (List[str], optional): other text columns that need to be tokenized. Defaults to [].
         prev_sample_size (int, optional): number of previous text columns to sample out of those available. Defaults to None, which means all of them
         next_sample_size (int, optional): number of next text columns to sample out of those available. Defaults to None, which means all of them
-        concatenate (bool, optional): If true, creates a single piece of text with the windowed utterances, as opposed to one for each utterance. Defaults to False.
+        concatenate (bool, optional): If true, creates a single piece of text with the windowed text_samples, as opposed to one for each text_sample. Defaults to False.
         prepare_target (bool, optional): In training mode, prepares the target from labels. Defaults to True.
         prepare_sample_id (bool, optional): In evaluation mode, prepares a unique sample id for the evaluated sample. Defaults to False.
 
@@ -192,7 +192,7 @@ def windowed_text_collate_function(sample: list,
     prev_text_cols = [l for l in sample.keys() if "{}_prev_".format(text_key) in l]
     next_text_cols = [l for l in sample.keys() if "{}_next_".format(text_key) in l]
 
-    if prepare_target: #if training, we sample n previous utterances and n next utterances, then order them
+    if prepare_target: #if training, we sample n previous text_samples and n next text_samples, then order them
         prev_text_cols = _get_sample_list(prev_text_cols, prev_sample_size)
         next_text_cols = _get_sample_list(next_text_cols, next_sample_size)
 
@@ -200,7 +200,7 @@ def windowed_text_collate_function(sample: list,
         prev_text_cols.sort(reverse=True)
         next_text_cols.sort() 
 
-    else: #if eval, we just get the last n previous utterances and first n next utterances. every time
+    else: #if eval, we just get the last n previous text_samples and first n next text_samples. every time
         prev_text_cols.sort(reverse=True)
         next_text_cols.sort()
         prev_text_cols = prev_text_cols[-prev_sample_size:]
@@ -212,7 +212,7 @@ def windowed_text_collate_function(sample: list,
         raise KeyError(
             "Text key {} does not exist in sample. Sample keys are:\n{}".format(text_key, list(sample.keys())))
 
-    # first get the utterance column itself
+    # first get the text_sample column itself
     tokens, lengths = tokenizer.batch_encode(sample[text_key])
     inputs['tokens'][text_key] = tokens
     inputs['lengths'][text_key] = lengths
@@ -226,8 +226,8 @@ def windowed_text_collate_function(sample: list,
     # then get all the context columns
     if concatenate: #if concatenating, we just put them together in the order prev, text, next
         ordered_text_cols = prev_text_cols + [text_key] + next_text_cols
-        single_utterance_list = _concatenate_utterances(sample, ordered_text_cols)
-        tokens, lengths = tokenizer.batch_encode(single_utterance_list)
+        single_text_sample_list = _concatenate_text_samples(sample, ordered_text_cols)
+        tokens, lengths = tokenizer.batch_encode(single_text_sample_list)
         inputs['tokens'][text_key+"_concatenated_context"] = tokens
         inputs['lengths'][text_key+"_concatenated_context"] = lengths
     else:

@@ -32,11 +32,11 @@ class AugmentedTransformerClassifier(TransformerClassifier):
             self.text_representation.freeze_encoder()
 
     def _compute_input_layer_size(self, num_encoder_features: int):
-        n_prev_utterances = self.args.hparams['n_prev_utterances'] if self.args.hparams['n_prev_utterances_sample_size'] is None else self.args.hparams['n_prev_utterances_sample_size']
-        n_next_utterances = self.args.hparams['n_next_utterances'] if self.args.hparams['n_next_utterances_sample_size'] is None else self.args.hparams['n_next_utterances_sample_size']
-        num_context_utterances = 1 if self.args.hparams['utterance_concatenation'] else n_prev_utterances + n_next_utterances
+        n_prev_text_samples = self.args.hparams['n_prev_text_samples'] if self.args.hparams['n_prev_text_samples_sample_size'] is None else self.args.hparams['n_prev_text_samples_sample_size']
+        n_next_text_samples = self.args.hparams['n_next_text_samples'] if self.args.hparams['n_next_text_samples_sample_size'] is None else self.args.hparams['n_next_text_samples_sample_size']
+        num_context_text_samples = 1 if self.args.hparams['text_sample_concatenation'] else n_prev_text_samples + n_next_text_samples
         num_title_embedding_features = 1 if self.args.hparams['document_title'] else 0
-        expected_size = (num_context_utterances + num_title_embedding_features + 1) * num_encoder_features
+        expected_size = (num_context_text_samples + num_title_embedding_features + 1) * num_encoder_features
         return expected_size
 
     def _build_model(self) -> None:

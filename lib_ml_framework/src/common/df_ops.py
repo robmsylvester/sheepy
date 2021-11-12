@@ -36,7 +36,7 @@ def read_csv(path: str,
 # def read_rich_transcript(path: str,
 #     evaluate: bool = False,
 #     label_key: str = "label",
-#     text_key: str = "text", #TODO - probably dont need this. they are always 'utterances' probably
+#     text_key: str = "text", #TODO - probably dont need this. they are always 'text_samples' probably
 #     additional_doc_keys: List = [],
 #     additional_utt_keys: List = []) -> pd.DataFrame:
 #     """
@@ -48,7 +48,7 @@ def read_csv(path: str,
 #         label_key (str): specific label to look for in transcript to create pandas dataframe column with
 #         text_key (str): name of the text column to use in the transcript dataframe. 
 #         additional_doc_keys: List(str): list of additional keys to grab from the rich transcript's topmost level (num participants, etc.)
-#         additional_utt_keys: List(str): list of additional keys to grab from the rich transcript at the utterance level
+#         additional_utt_keys: List(str): list of additional keys to grab from the rich transcript at the text_sample level
 
 #     If the text key or label key specified do not exist, then an ValueError will be thrown. If one of the
 #     keys passed to additional_doc_keys or additional_utt_keys are not found, then they will be silently ignored.
@@ -58,8 +58,8 @@ def read_csv(path: str,
     
 #     Raises:
 #         ValueError, in three cases:
-#             1. text key doesn't exist in utterances
-#             2. label_key doesn't exist in utterances.
+#             1. text key doesn't exist in text_samples
+#             2. label_key doesn't exist in text_samples.
 #             3. a value exists in both additional_doc_keys and additional_utt_keys
     
 #     """
@@ -85,16 +85,16 @@ def read_csv(path: str,
 #             except KeyError:
 #                 continue
 #         try:
-#             positive_label_utterances = data["labels"][label_key]
+#             positive_label_text_samples = data["labels"][label_key]
 #         except KeyError:
 #             try:
-#                 positive_label_utterances = data[label_key]
+#                 positive_label_text_samples = data[label_key]
 #             except KeyError:
 #                 raise KeyError("The key {} was not found on the top level of the JSON, nor under the 'labels' object key in the JSON (where it should be). Please fix this.".format(label_key))
 
 
 #         for utt_id, utt_obj in data[text_key].items():
-#             y = "positive" if utt_id in positive_label_utterances else "negative"
+#             y = "positive" if utt_id in positive_label_text_samples else "negative"
 #             row = {text_key: utt_obj["text"], label_key: y}
 #             if evaluate:
 #                 row["id"] = utt_obj["id"]
@@ -177,16 +177,16 @@ def read_csv_text_classifier(path: str,
     return return_df.astype(str)
 
 
-def window_text(df: pd.DataFrame, text_col: str = "text", n_prev_utterances: int = 0, n_next_utterances: int = 0):
-    """Given a dataframe with a targeted text column, generate columns n_prev_utterances to the left and 
-        n_next_utterances to the right that represent shifts of the targeted column, thereby allowing you
+def window_text(df: pd.DataFrame, text_col: str = "text", n_prev_text_samples: int = 0, n_next_text_samples: int = 0):
+    """Given a dataframe with a targeted text column, generate columns n_prev_text_samples to the left and 
+        n_next_text_samples to the right that represent shifts of the targeted column, thereby allowing you
         to have in a given row a window of conversation context to the left and right.
 
     Args:
         df (pd.DataFrame): the dataframe to modify (not in place)
         text_col (str, optional): [description]. The target column to window Defaults to "text".
-        n_prev_utterances (int, optional): The number of previous text columns to window. Defaults to 0.
-        n_next_utterances (int, optional): The number of next text columns to window. Defaults to 0.
+        n_prev_text_samples (int, optional): The number of previous text columns to window. Defaults to 0.
+        n_next_text_samples (int, optional): The number of next text columns to window. Defaults to 0.
 
     Raises:
         ValueError: The text column is not in the dataframe
@@ -198,10 +198,10 @@ def window_text(df: pd.DataFrame, text_col: str = "text", n_prev_utterances: int
         raise ValueError(
             "Cannot window text column {} that does not exist in the dataframe. Check config JSON and args to data modules".format(
                 text_col))
-    for i in range(1, n_prev_utterances + 1):
+    for i in range(1, n_prev_text_samples + 1):
         col_name = "{}_prev_{}".format(text_col, i)
         df[col_name] = df[text_col].shift(i).fillna("")
-    for i in range(1, n_next_utterances + 1):
+    for i in range(1, n_next_text_samples + 1):
         col_name = "{}_next_{}".format(text_col, i)
         df[col_name] = df[text_col].shift(-i).fillna("")
     return df

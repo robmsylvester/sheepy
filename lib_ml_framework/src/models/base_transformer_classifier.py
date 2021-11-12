@@ -120,7 +120,7 @@ class TransformerClassifier(BaseClassifier):
         Args:
             data_module (LightningDataModule): module implementing method prepare_sample()
         """
-        print("Live Demo Mode.\nEnter 'q' or 'quit' (without quotes) to exit the program.\nEnter a single utterance to run classification on.\n")
+        print("Live Demo Mode.\nEnter 'q' or 'quit' (without quotes) to exit the program.\nEnter a single text_sample to run classification on.\n")
         while True:
             user_input = input("> ")
             if user_input == "q" or user_input == "quit":
@@ -133,11 +133,11 @@ class TransformerClassifier(BaseClassifier):
 
     def evaluate_file(self, file_path: str, out_path: str = None):
         """
-        Evaluates a file, with one utterance on each file, and gets the model prediction for each line. 
+        Evaluates a file, with one text_sample on each file, and gets the model prediction for each line. 
         Sorts the return values with highest (positives) first, and appends to the out_path.
 
         Args:
-            file_path (str): input file with one utterance prediction done per line
+            file_path (str): input file with one text_sample prediction done per line
             out_path (str): output path of sorted predictions. if none, prints formatted to stdout
         """
         with open(file_path) as fp:

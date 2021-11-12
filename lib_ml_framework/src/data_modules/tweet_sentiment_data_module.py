@@ -16,8 +16,8 @@ class TweetSentimentDataModule(BaseCSVDataModule):
     def __init__(self, args):
         super().__init__(args)
 
-        # Synthetic transcripts by default will use 0 utterances on both sides of windowing because they are randomly sampled so this would make no sense.
-        if self.args.hparams['n_prev_utterances'] > 0 or self.args.hparams['n_next_utterances'] > 0:
+        # Synthetic transcripts by default will use 0 text_samples on both sides of windowing because they are randomly sampled so this would make no sense.
+        if self.args.hparams['n_prev_text_samples'] > 0 or self.args.hparams['n_next_text_samples'] > 0:
             raise ValueError(
                 "Synthetic transcripts are being used. Must not use windowed transcripts")
 
