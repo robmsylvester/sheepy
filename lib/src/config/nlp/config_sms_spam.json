@@ -50,7 +50,7 @@
         "param_log_steps": null
     },
     "sweep": {
-        "name": "sweep_v1_rich_transcripts",
+        "name": "sweep_v1",
         "method": "bayes",
         "metric": {
             "name": "auroc",

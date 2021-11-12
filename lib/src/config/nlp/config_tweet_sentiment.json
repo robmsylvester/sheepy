@@ -1,9 +1,8 @@
 {
     "experiment": {
-        "project_name": "test_sentiment_three",
-        "description": "Testing ML Framework on Synthetic Decisions",
-        "ticket": "MI-3128",
-        "dataset": "synthetic_decisions_small",
+        "project_name": "test_tweet_sentiment",
+        "description": "Multiclass, Large Dataset",
+        "dataset": "tweet_Sentiment",
         "version": 0,
         "nlp": true,
         "data_module": "tweet_sentiment_data_module",
@@ -12,7 +11,7 @@
         "restore_from_checkpoint": false
     },
     "hparams": {
-        "label": "airline_sentiment",
+        "label": "target",
         "text": "text",
         "disable_weight_scale": false,
         "nr_frozen_epochs": 1,

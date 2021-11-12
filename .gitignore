@@ -131,6 +131,7 @@ lightning_logs/*
 
 #wandb logs (for safety)
 wandb/*
+lib/wandb
 
 #VS Code files
 .vscode/

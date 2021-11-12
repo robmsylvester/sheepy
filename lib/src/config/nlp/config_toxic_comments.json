@@ -1,8 +1,7 @@
 {
     "experiment": {
         "project_name": "test_sentiment_three",
-        "description": "Testing ML Framework on Synthetic Decisions",
-        "ticket": "MI-3128",
+        "description": "Multiclass, Multilabel Sample",
         "dataset": "toxic_comments",
         "version": 0,
         "nlp": true,
