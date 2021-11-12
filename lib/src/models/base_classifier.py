@@ -12,7 +12,7 @@ from pytorch_lightning import LightningDataModule
 from pytorch_lightning.metrics.functional.classification import auroc
 from sklearn.metrics import precision_score, recall_score, f1_score
 from collections import OrderedDict
-from lib_ml_framework.src.common.logger import get_std_out_logger
+from lib.src.common.logger import get_std_out_logger
 
 # TODO - replace args with args or leave and get implicitly tracked by lightning. hmmmm
 

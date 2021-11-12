@@ -14,8 +14,6 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
 parts/
 sdist/
 var/
@@ -138,7 +136,7 @@ wandb/*
 .vscode/
 
 #model outputs
-lib_ml_framework/outputs
+lib/outputs
 
 #resources for datasets
-lib_ml_framework/resources
+lib/resources

@@ -1,7 +1,7 @@
 import argparse
 from pytorch_lightning import LightningDataModule
-from lib_ml_framework.src.models.multilabel_transformer_classifier import MultiLabelTransformerClassifier
-from lib_ml_framework.src.models.augmented_transformer_classifier import AugmentedTransformerClassifier
+from lib.src.models.multilabel_transformer_classifier import MultiLabelTransformerClassifier
+from lib.src.models.augmented_transformer_classifier import AugmentedTransformerClassifier
 
 class MultiLabelAugmentedTransformerClassifier(AugmentedTransformerClassifier, MultiLabelTransformerClassifier):
     """

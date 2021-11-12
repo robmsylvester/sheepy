@@ -6,7 +6,7 @@ import numpy as np
 import plotly.graph_objects as go
 from tqdm import tqdm
 from pytorch_lightning import LightningDataModule
-from lib_ml_framework.src.models.base_transformer_classifier import TransformerClassifier
+from lib.src.models.base_transformer_classifier import TransformerClassifier
 from sklearn.metrics import confusion_matrix
 from collections import OrderedDict
 from copy import deepcopy

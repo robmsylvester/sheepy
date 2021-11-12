@@ -1,8 +1,8 @@
 import argparse
 import pandas as pd
 from typing import List
-from lib_ml_framework.src.data_modules.base_data_module import BaseDataModule
-from lib_ml_framework.src.common.collate import CollatedSample, single_text_collate_function
+from lib.src.data_modules.base_data_module import BaseDataModule
+from lib.src.common.collate import CollatedSample, single_text_collate_function
 
 
 class MultiLabelBaseDataModule(BaseDataModule):

@@ -3,8 +3,8 @@ import pandas as pd
 import os
 from typing import List
 from pytorch_lightning import LightningDataModule
-from lib_ml_framework.src.data_modules.base_csv_data_module import BaseCSVDataModule
-from lib_ml_framework.src.common.collate import single_text_collate_function, CollatedSample
+from lib.src.data_modules.base_csv_data_module import BaseCSVDataModule
+from lib.src.common.collate import single_text_collate_function, CollatedSample
 from torchnlp.encoders import LabelEncoder
 
 class TweetSentimentDataModule(BaseCSVDataModule):

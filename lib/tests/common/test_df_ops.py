@@ -1,6 +1,6 @@
 import pytest
 
-from lib_ml_framework.src.common.df_ops import read_csv, read_csv_text_classifier, window_text, resample_positives, resample_multilabel_positives, SOURCE_FILE
+from lib.src.common.df_ops import read_csv, read_csv_text_classifier, window_text, resample_positives, resample_multilabel_positives, SOURCE_FILE
 
 def test_read_csv_text_classifier():
     path = 'tests/resources/dummy_dataset.csv'

@@ -2,7 +2,7 @@ import torch
 import wandb
 from pytorch_lightning import LightningDataModule
 from sklearn.metrics import precision_score, recall_score, f1_score
-from lib_ml_framework.src.models.base_transformer_classifier import TransformerClassifier
+from lib.src.models.base_transformer_classifier import TransformerClassifier
 from argparse import Namespace
 
 

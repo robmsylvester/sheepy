@@ -4,7 +4,7 @@ from typing import List, Dict
 import pytorch_lightning as pl
 import os
 from argparse import Namespace
-from lib_ml_framework.src.common.logger import get_std_out_logger
+from lib.src.common.logger import get_std_out_logger
 from pytorch_lightning.loggers import WandbLogger, LightningLoggerBase
 from pytorch_lightning.callbacks import ModelCheckpoint, LearningRateMonitor
 from pytorch_lightning.callbacks.gradient_accumulation_scheduler import GradientAccumulationScheduler

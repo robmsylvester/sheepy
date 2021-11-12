@@ -8,13 +8,13 @@ from tqdm import tqdm
 from pytorch_lightning import LightningDataModule
 from torch import nn, optim
 from argparse import Namespace
-from lib_ml_framework.src.common.collate import round_size
+from lib.src.common.collate import round_size
 from torch.nn import functional as F
 from torchnlp.utils import lengths_to_mask
-from lib_ml_framework.src.common.tokenizer import mask_fill
-from lib_ml_framework.src.models.base_classifier import BaseClassifier
-from lib_ml_framework.src.models.fully_connected_classifier import FullyConnectedClassifier
-from lib_ml_framework.src.nlp.text_representation import TextRepresentation
+from lib.src.common.tokenizer import mask_fill
+from lib.src.models.base_classifier import BaseClassifier
+from lib.src.models.fully_connected_classifier import FullyConnectedClassifier
+from lib.src.nlp.text_representation import TextRepresentation
 
 # TODO -make decision here - replace args with hparams or leave and get silentily tracked by lightning. hmmmmmmmm
 

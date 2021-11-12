@@ -1,4 +1,4 @@
-from lib_ml_framework.src.common.logger import get_std_out_logger
+from lib.src.common.logger import get_std_out_logger
 import numpy as np
 import onnx
 import onnxruntime

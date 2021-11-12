@@ -3,9 +3,9 @@ import torch
 import time
 import os
 import json
-from lib_ml_framework.src.experiment.base_experiment import Experiment
-from lib_ml_framework.src.experiment.sweep_experiment import SweepExperiment
-from lib_ml_framework.src.config.module_mappings import data_module_mapping, model_mapping
+from lib.src.experiment.base_experiment import Experiment
+from lib.src.experiment.sweep_experiment import SweepExperiment
+from lib.src.config.module_mappings import data_module_mapping, model_mapping
 
 
 def get_parser() -> argparse.ArgumentParser:

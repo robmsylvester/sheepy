@@ -3,8 +3,8 @@
 import argparse
 import pandas as pd
 import os
-from lib_ml_framework.src.data_modules.multi_label_base_data_module import MultiLabelBaseDataModule
-from lib_ml_framework.src.common.df_ops import read_csv_text_classifier, split_dataframes
+from lib.src.data_modules.multi_label_base_data_module import MultiLabelBaseDataModule
+from lib.src.common.df_ops import read_csv_text_classifier, split_dataframes
 
 
 class MultiLabelCSVDataModule(MultiLabelBaseDataModule):

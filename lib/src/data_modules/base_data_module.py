@@ -6,9 +6,9 @@ from typing import Union, List, Dict, Optional
 from pytorch_lightning import LightningDataModule
 from torchnlp.encoders import LabelEncoder
 from torch.utils.data import DataLoader, RandomSampler
-from lib_ml_framework.src.common.tokenizer import Tokenizer
-from lib_ml_framework.src.common.collate import single_text_collate_function, CollatedSample
-from lib_ml_framework.src.common.logger import get_std_out_logger
+from lib.src.common.tokenizer import Tokenizer
+from lib.src.common.collate import single_text_collate_function, CollatedSample
+from lib.src.common.logger import get_std_out_logger
 
 
 class BaseDataModule(LightningDataModule):

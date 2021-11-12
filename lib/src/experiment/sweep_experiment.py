@@ -2,7 +2,7 @@ import wandb
 import pytorch_lightning as pl
 from torch.multiprocessing import set_start_method
 from argparse import Namespace
-from lib_ml_framework.src.experiment.base_experiment import Experiment
+from lib.src.experiment.base_experiment import Experiment
 
 # Note, to access params chosen from the sweep, refer to them as wandb.config, and this references
 # the parameters object in the sweep from your JSON configuration file. Call wandb.init() first to

@@ -3,8 +3,8 @@ import os
 import pickle
 import pandas as pd
 from typing import Any
-from lib_ml_framework.src.common.df_ops import read_csv_text_classifier, split_dataframes, write_csv_dataset, resample_positives, resample_multilabel_positives
-from lib_ml_framework.src.data_modules.base_data_module import BaseDataModule
+from lib.src.common.df_ops import read_csv_text_classifier, split_dataframes, write_csv_dataset, resample_positives, resample_multilabel_positives
+from lib.src.data_modules.base_data_module import BaseDataModule
 
 
 class BaseCSVDataModule(BaseDataModule):

@@ -3,11 +3,11 @@ from typing import Dict
 from argparse import ArgumentParser, Namespace
 from torchnlp.utils import lengths_to_mask
 from pytorch_lightning import LightningDataModule
-from lib_ml_framework.src.common.tokenizer import mask_fill
-from lib_ml_framework.src.common.collate import round_size
-from lib_ml_framework.src.models.base_transformer_classifier import TransformerClassifier
-from lib_ml_framework.src.models.fully_connected_classifier import FullyConnectedClassifier
-from lib_ml_framework.src.nlp.text_representation import TextRepresentation
+from lib.src.common.tokenizer import mask_fill
+from lib.src.common.collate import round_size
+from lib.src.models.base_transformer_classifier import TransformerClassifier
+from lib.src.models.fully_connected_classifier import FullyConnectedClassifier
+from lib.src.nlp.text_representation import TextRepresentation
 
 class AugmentedTransformerClassifier(TransformerClassifier):
     """
