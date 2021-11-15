@@ -1,9 +1,6 @@
 import argparse
 import pandas as pd
 import os
-from tqdm import tqdm
-from typing import List
-from pytorch_lightning import LightningDataModule
 from lib.src.data_modules.base_csv_data_module import BaseCSVDataModule
 from lib.src.common.collate import single_text_collate_function, CollatedSample
 from lib.src.common.df_ops import read_csv_text_classifier
@@ -89,5 +86,5 @@ class TweetSentimentDataModule(BaseCSVDataModule):
     def add_model_specific_args(cls, parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
         """ Return the argument parser with necessary args for this class appended to it """
         parser.add_argument(
-            "--data_dir", type=str, required=True, help="Path to the directory containing the synthetic transcripts as separate files.")
+            "--data_dir", type=str, required=True, help="Path to the directory containing the data")
         return parser

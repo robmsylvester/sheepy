@@ -1,6 +1,6 @@
 import torch
 from typing import Dict
-from argparse import ArgumentParser, Namespace
+from argparse import Namespace
 from torchnlp.utils import lengths_to_mask
 from pytorch_lightning import LightningDataModule
 from lib.src.common.tokenizer import mask_fill

@@ -3,8 +3,6 @@ import pandas as pd
 import os
 import requests
 import zipfile
-from typing import List, Tuple
-from pytorch_lightning import LightningDataModule
 from lib.src.data_modules.base_csv_data_module import BaseCSVDataModule
 from lib.src.common.collate import single_text_collate_function, CollatedSample
 from torchnlp.encoders import LabelEncoder

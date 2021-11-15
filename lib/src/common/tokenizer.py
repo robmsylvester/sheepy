@@ -1,7 +1,5 @@
 import torch
 from transformers import AutoTokenizer
-from torchnlp.encoders import Encoder
-from torchnlp.encoders.text import stack_and_pad_tensors
 from torchnlp.encoders.text.text_encoder import TextEncoder
 
 

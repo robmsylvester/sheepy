@@ -9,8 +9,6 @@ from pytorch_lightning import LightningDataModule
 from lib.src.models.base_transformer_classifier import TransformerClassifier
 from sklearn.metrics import confusion_matrix
 from collections import OrderedDict
-from copy import deepcopy
-
 
 class MultiLabelTransformerClassifier(TransformerClassifier):
     """

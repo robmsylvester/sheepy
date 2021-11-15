@@ -5,10 +5,9 @@ import pytorch_lightning as pl
 import os
 from argparse import Namespace
 from lib.src.common.logger import get_std_out_logger
-from pytorch_lightning.loggers import WandbLogger, LightningLoggerBase
+from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.callbacks import ModelCheckpoint, LearningRateMonitor
-from pytorch_lightning.callbacks.gradient_accumulation_scheduler import GradientAccumulationScheduler
-
+from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 # TODO - add restore from checkpoint
 
 class Experiment():
