@@ -3,6 +3,7 @@ from lib.src.data_modules.multi_label_csv_data_module import MultiLabelCSVDataMo
 
 from lib.src.data_modules.examples.sms_spam_data_module import SmsSpamDataModule
 from lib.src.data_modules.examples.tweet_sentiment_data_module import TweetSentimentDataModule
+from lib.src.data_modules.examples.semeval_sentiment_data_module import SemEvalSentimentDataModule
 
 from lib.src.models.multilabel_augmented_transformer_classifier import MultiLabelAugmentedTransformerClassifier
 from lib.src.models.base_transformer_classifier import TransformerClassifier
@@ -16,7 +17,8 @@ data_module_mapping = {
     'toxic_comment_data_module': MultiLabelCSVDataModule,
     'synthetic_tone_data_module': MultiLabelCSVDataModule,
     'sms_spam_data_module': SmsSpamDataModule,
-    'tweet_sentiment_data_module': TweetSentimentDataModule
+    'tweet_sentiment_data_module': TweetSentimentDataModule,
+    'semeval_data_module': SemEvalSentimentDataModule
 }
 
 model_mapping = {

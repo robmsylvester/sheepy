@@ -35,6 +35,7 @@ def read_csv(path: str,
 
 def read_csv_text_classifier(path: str,
                              encoding: str="utf-8",
+                             delimiter: str=",",
                              evaluate: bool = False,
                              label_cols: Union[str, List[str]] = "label",
                              text_col: str = "text",
@@ -46,6 +47,7 @@ def read_csv_text_classifier(path: str,
     Arguments:
         path (str): path to a csv file.
         encoding (str): type of encoding of csv
+        delimiter (str): separation char/str for dataset. usually comma
         evaluate (bool): prepares data for the evaluation mode instead of the train/val/test mode
         label_cols (list or str): name of label column(s) in csv.
         text_col (str): name of text column in csv if it exists.
@@ -62,9 +64,9 @@ def read_csv_text_classifier(path: str,
         2. If any of the label column does not exist in the dataframe and we're not in evaluation mode
     """
     if names is None:
-        df = pd.read_csv(path, encoding=encoding)
+        df = pd.read_csv(path, encoding=encoding, delimiter=delimiter)
     else:
-        df = pd.read_csv(path, encoding=encoding, names=names)
+        df = pd.read_csv(path, encoding=encoding, names=names, delimiter=delimiter)
     labels = deepcopy(label_cols)
 
     if isinstance(labels, str):

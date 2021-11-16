@@ -140,4 +140,4 @@ lib/wandb
 lib/outputs
 
 #resources for datasets
-lib/resources
+lib/resources/datasets/tweet_sentiment140

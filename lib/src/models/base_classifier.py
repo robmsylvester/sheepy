@@ -9,7 +9,7 @@ from sklearn.metrics import confusion_matrix
 from torch.nn import functional as F
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning import LightningDataModule
-from pytorch_lightning.metrics.functional.classification import auroc
+from pytorch_lightning.metrics.functional.classification import auroc, multiclass_auroc
 from sklearn.metrics import precision_score, recall_score, f1_score
 from collections import OrderedDict
 from lib.src.common.logger import get_std_out_logger
@@ -57,7 +57,7 @@ class BaseClassifier(pl.LightningModule):
         self.metrics = {
             'f1': f1_score,
             'precision': precision_score,
-            'auroc': auroc,
+            'auroc': auroc if self.args.hparams['num_labels'] <= 2 else multiclass_auroc,
             'recall': recall_score
         }
 
@@ -243,6 +243,12 @@ class BaseClassifier(pl.LightningModule):
                           for output in outputs]).detach().cpu()
         target = torch.cat([output['target']
                             for output in outputs]).detach().cpu()
+        
+        one_hot_shape = (pred.shape[0], len(self.data.label_encoder.vocab))
+        one_hot_pred = np.zeros(one_hot_shape)
+        rows = np.arange(pred.shape[0])
+        one_hot_pred[rows, pred] = 1
+        one_hot_pred = torch.tensor(one_hot_pred, dtype=torch.float32)
 
         # Set certain metric outputs to 0 if there are no positives.
         total_positives = torch.sum(target).cpu().numpy(
@@ -250,15 +256,19 @@ class BaseClassifier(pl.LightningModule):
 
         if total_positives == 0:
             wandb.termwarn(
-                "Warning, no sample targets were found that are positive. Setting certain metrics to output 0.")
-            # 1 or 0 is standard. 0 is nice though because then you go up from the beginning :)
+                "Warning, no sample targets were found that are positive. Setting certain metrics to output 0 for this validation iteration")
             auroc = f1 = precision = recall = torch.tensor([0.])
         else:
+            
+            average_param = "micro" if len(self.data.label_encoder.vocab) == 2 else None
+            label_param = None if len(self.data.label_encoder.vocab) == 2 else [self.data.label_encoder.encode(k) for k in self.data.label_encoder.vocab]
+
             f1 = self.metrics['f1'](
-                target.numpy(), pred.numpy(), pos_label=1)
-            auroc = self.metrics['auroc'](pred, target)
-            precision = self.metrics['precision'](target.numpy(), pred.numpy(), pos_label=1)
-            recall = self.metrics['recall'](target.numpy(), pred.numpy(), pos_label=1)
+                target.numpy(), pred.numpy(), pos_label=1, labels=label_param, average=average_param)
+
+            auroc = self.metrics['auroc'](pred, target) if len(self.data.label_encoder.vocab) == 2 else self.metrics['auroc'](one_hot_pred, target)
+            precision = self.metrics['precision'](target.numpy(), pred.numpy(), pos_label=1, labels=label_param, average=average_param)
+            recall = self.metrics['recall'](target.numpy(), pred.numpy(), pos_label=1, labels=label_param, average=average_param)
 
         # The confusion matrix we can construct always, regardless of whether or not we have any positives
         cm = self._create_confusion_matrix(pred, target)

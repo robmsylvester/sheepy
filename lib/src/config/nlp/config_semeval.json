@@ -1,0 +1,72 @@
+{
+    "experiment": {
+        "project_name": "Tweet_Sentiment_Example",
+        "description": "Example on Multiclass Classification using SemEval Dataset",
+        "dataset": "semeval",
+        "version": 0,
+        "nlp": true,
+        "data_module": "semeval_data_module",
+        "model": "transformer_classifier",
+        "restore_from_checkpoint": false
+    },
+    "hparams": {
+        "label": "label",
+        "text": "text",
+        "positive_resample_rate" : 5,
+        "disable_weight_scale": false,
+        "nr_frozen_epochs": 1,
+        "loader_workers": 8,
+        "encoder_model": "bert-base-uncased",
+        "n_prev_text_samples": 0,
+        "n_next_text_samples": 0,
+        "context_labels": "remove",
+        "n_prev_text_samples_sample_size": 4,
+        "n_next_text_samples_sample_size": 4,
+        "batch_size": 32,
+        "num_dense_layers": 3,
+        "dense_layer_scale_factor": 0.75,
+        "save_epoch_count": 4,
+        "num_epochs": 3,
+        "num_epochs_decay": 100,
+        "accumulate_grad_batches": 1,
+        "gradient_clip_val": 1,
+        "dropout_p": 0.5,
+        "early_stop_enabled": false,
+        "learning_rate": 3e-5,
+        "encoder_learning_rate": 1e-5,
+        "train_ratio": 0.70,
+        "validation_ratio": 0.15,
+        "test_ratio": 0.15,
+        "num_labels": 3,
+        "unknown_index": 0
+    },
+    "validation": {
+        "metric": "auroc",
+        "metric_goal": "max",
+        "check_val_every_n_epoch": 1,
+        "val_check_interval": 0.5,
+        "save_top_k": 1,
+        "gradient_log_steps": 100,
+        "param_log_steps": null
+    },
+    "sweep": {
+        "name": "sweep_v1",
+        "method": "bayes",
+        "metric": {
+            "name": "auroc",
+            "goal": "max"
+        },
+        "parameters": {
+            "learning_rate": {
+                "min": 1e-5,
+                "max": 5e-4
+            },
+            "num_dense_layers": {
+                "values": [
+                    3,
+                    4
+                ]
+            }
+        }
+    }
+}
