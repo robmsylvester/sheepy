@@ -1,3 +1,11 @@
 1. validation_epoch_end split for multiclass vs multilabel
 2. data loader on separate files
 3. evaluation fix
+4. remove data loading from prepare_data function
+5. remove setup.py dependency
+6. remove sklearn and just use torchmetrics for accuracy, f1, precision, recall
+7. update the libaries for wandb and pytl
+8. put pos_label in config profile, perhaps for metrics as a full part of the config
+9. FC classifier should take a list of sizes, not that scale parameter bs
+10. batch prediction
+11. doc strings standardized

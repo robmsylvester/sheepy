@@ -9,8 +9,6 @@ from sklearn.metrics import confusion_matrix
 from torch.nn import functional as F
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning import LightningDataModule
-from pytorch_lightning.metrics.functional.classification import auroc, multiclass_auroc
-from sklearn.metrics import precision_score, recall_score, f1_score
 from collections import OrderedDict
 from lib.src.common.logger import get_std_out_logger
 
@@ -50,16 +48,11 @@ class BaseClassifier(pl.LightningModule):
             "_build_model() has not been implemented. You must override this in your classifier")
 
     def _build_metrics(self) -> None:
+        """Builds out the basic metrics for a classifier. This needs to be implemented in your classifier by
+        instantiating the ClassificationMetrics class
         """
-        This function establishes the metrics that we want to track in weights and biases for the experiment
-        TODO - these should be part of the experiment profile, not hardcoded
-        """
-        self.metrics = {
-            'f1': f1_score,
-            'precision': precision_score,
-            'auroc': auroc if self.args.hparams['num_labels'] <= 2 else multiclass_auroc,
-            'recall': recall_score
-        }
+        raise NotImplementedError(
+            "build_metrics() has not been implemented. You must override this in your classifier")
 
     def _get_class_weights(self):
         """
@@ -105,16 +98,16 @@ class BaseClassifier(pl.LightningModule):
 
     # TODO: allow batches?
     def predict(self, data_module: LightningDataModule, sample: dict) -> dict:
-        """ Predict function.
-        :param sample: dictionary with the text we want to classify.
+        """Evaluation function
+
+        Args:
+            data_module (LightningDataModule): module with method prepare_sample()
+            sample (dict): Dictionary with correct key that specifies text column and value as text we want to classify
+
         Returns:
-            Dictionary with the input text and the predicted label.
+            dict: Dictionary with the input text and the predicted label.
         """
-        if self.training:
-            self.eval()
-        with torch.no_grad():
-            raise NotImplementedError(
-                "predict() has not been implemented. You must override this in your classifier")
+        pass
 
     def evaluate_live(self):
         """
@@ -191,13 +184,13 @@ class BaseClassifier(pl.LightningModule):
         model_out = self.forward(**inputs)
         loss_val = self.loss(model_out, targets)
 
-        y = targets["labels"]
-        y_hat = model_out["logits"]
+        labels = targets["labels"]
+        logits = model_out["logits"]
 
         # some classification metrics
         # TODO - migrate these over to additional metrics
-        labels_hat = torch.argmax(y_hat, dim=1)
-        val_acc = torch.sum(y == labels_hat).item() / (len(y) * 1.0)
+        preds = torch.argmax(logits, dim=1)
+        val_acc = torch.sum(labels == preds).item() / (len(labels) * 1.0)
         val_acc = torch.tensor(val_acc)
 
         if self.on_gpu:
@@ -211,13 +204,25 @@ class BaseClassifier(pl.LightningModule):
         output = OrderedDict({
             "val_loss": loss_val,
             "val_acc": val_acc,
-            "pred": labels_hat,
-            "target": y
+            "logits": logits,
+            "target": labels
         })
 
-        # can also return just a scalar instead of a dict (return loss_val)
-
         return output
+    
+    def validation_step_end(self, outputs: dict):
+        """Synchronizes metrics across GPU's in DP mode by updating and computing given the dictionary
+        of outputs from the validation_step called on each GPU
+
+        Args:
+            outputs (dict): Return value of validation_step
+
+        Returns:
+            None
+        """
+        output_metrics = self.metrics.compute_metrics(outputs['logits'], outputs['target'], validation=True)
+        self.log_dict(output_metrics)
+        return outputs
 
     # TODO - this implementation is too specific for the base class. Move to children
     def validation_epoch_end(self, outputs: list) -> dict:
@@ -239,14 +244,132 @@ class BaseClassifier(pl.LightningModule):
         val_loss_mean = 0
         val_acc_mean = 0
 
-        pred = torch.cat([output['pred']
+        logits = torch.cat([output['logits']
                           for output in outputs]).detach().cpu()
+        pred = torch.argmax(logits, dim=1)
+        # print(logits.shape)
+        # print(pred.shape)
+        # print(pred)
+        target = torch.cat([output['target']
+                            for output in outputs]).detach().cpu()
+        
+        # one_hot_shape = (pred.shape[0], len(self.data.label_encoder.vocab))
+        # one_hot_pred = np.zeros(one_hot_shape)
+        # rows = np.arange(pred.shape[0])
+        # # print(rows)
+        # one_hot_pred[rows, pred] = 1
+        # one_hot_pred = torch.tensor(one_hot_pred, dtype=torch.float32)
+
+        # Set certain metric outputs to 0 if there are no positives.
+        total_positives = torch.sum(target).cpu().numpy(
+        ) if self.on_gpu else torch.sum(target).numpy()
+
+        # if total_positives == 0:
+        #     wandb.termwarn(
+        #         "Warning, no sample targets were found that are positive. Setting certain metrics to output 0 for this validation iteration")
+        #     output_metrics = {
+        #         'val_Precision': torch.tensor([0.]),
+        #         'val_Recall': torch.tensor([0.]),
+        #         'val_Accuracy': torch.tensor([0.]),
+
+        #     }
+        # else:
+            # average_param = "micro" if len(self.data.label_encoder.vocab) == 2 else None
+            # label_param = None if len(self.data.label_encoder.vocab) == 2 else [self.data.label_encoder.encode(k) for k in self.data.label_encoder.vocab]
+
+            # f1 = self.metrics['f1'](
+            #     target.numpy(), pred.numpy(), pos_label=1, labels=label_param, average=average_param)
+
+            # auroc = self.metrics['auroc'](pred, target) if len(self.data.label_encoder.vocab) == 2 else self.metrics['auroc'](one_hot_pred, target)
+            # precision = self.metrics['precision'](target.numpy(), pred.numpy(), pos_label=1, labels=label_param, average=average_param)
+            # recall = self.metrics['recall'](target.numpy(), pred.numpy(), pos_label=1, labels=label_param, average=average_param)
+
+        output_metrics = self.metrics.compute_metrics(logits, target, validation=True)
+
+        # The confusion matrix we can construct always, regardless of whether or not we have any positives
+        cm = self._create_confusion_matrix(pred, target)
+
+        # We will use the mean loss across all of the GPU's as the loss
+        for output in outputs:
+            val_loss = output["val_loss"]
+
+            # reduce manually when using dp or ddp2
+            if self.trainer.use_dp or self.trainer.use_ddp2:
+                val_loss = torch.mean(val_loss)
+            val_loss_mean += val_loss
+
+            # reduce manually when using dp
+            val_acc = output["val_acc"]
+            if self.trainer.use_dp or self.trainer.use_ddp2:
+                val_acc = torch.mean(val_acc)
+
+            val_acc_mean += val_acc
+
+        val_loss_mean /= len(outputs)
+        val_acc_mean /= len(outputs)
+        #tqdm_dict = {"val_loss": val_loss_mean, "val_acc": val_acc_mean}
+        # result = {  # TODO - this is probably useless.
+        #     "progress_bar": tqdm_dict,
+        #     "log": tqdm_dict,
+        #     "val_loss": val_loss_mean,
+        #     'f1': f1,
+        #     'auroc': auroc,
+        #     'precision': precision,
+        #     'recall': recall
+        # }
+        # tracked_metrics = {
+        #     "val_loss": val_loss_mean,
+        #     "val_acc": val_acc_mean,
+        #     'f1': f1,
+        #     'auroc': auroc,
+        #     'precision': precision,
+        #     'recall': recall,
+        #     'cm': cm
+        # }
+        output_metrics['val_loss'] = val_loss_mean
+        output_metrics['val_acc'] = val_acc_mean
+        output_metrics['cm'] = cm
+
+        self.log_metrics(output_metrics)
+        #self.log("recall", output_metrics['val_Recall'], prog_bar=True)
+        #self.log("precision", output_metrics['val_Precision'], prog_bar=True)
+        # self.log("f1", f1, prog_bar=True)
+        # self.log("auroc", auroc, prog_bar=True)
+        #self.log("val_loss", val_loss_mean, prog_bar=True)
+        #self.log("val_acc", val_acc_mean, prog_bar=True)
+        return None
+
+    # TODO - this implementation is too specific for the base class. Move to children
+    def validation_epoch_end_old(self, outputs: list) -> dict:
+        """ Function that takes as input a list of dictionaries returned by the validation_step
+        function and measures the model performance accross the entire validation set.
+
+        A lot of this logic here defines what to do in the case of multiple GPU's. In this case,
+        what we do with the validation loss is average the number out across the GPU's.
+
+        For other metrics, we can detach all of the predictions and targets from the GPU, concatenate them,
+        and just calculate them as one large vector.
+
+        Args:
+            outputs - list of dictionaries returned by validation step, across multiple gpus.
+
+        Returns:
+            - Dictionary with metrics to be added to the lightning logger.  
+        """
+        val_loss_mean = 0
+        val_acc_mean = 0
+
+        pred = torch.cat([output['logits']
+                          for output in outputs]).detach().cpu()
+        # print(pred.shape)
+        # print(pred)
         target = torch.cat([output['target']
                             for output in outputs]).detach().cpu()
         
         one_hot_shape = (pred.shape[0], len(self.data.label_encoder.vocab))
         one_hot_pred = np.zeros(one_hot_shape)
         rows = np.arange(pred.shape[0])
+        # print(rows)
         one_hot_pred[rows, pred] = 1
         one_hot_pred = torch.tensor(one_hot_pred, dtype=torch.float32)
 

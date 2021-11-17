@@ -42,7 +42,7 @@
         "unknown_index": 0
     },
     "validation": {
-        "metric": "auroc",
+        "metric": "val_AUROC",
         "metric_goal": "max",
         "check_val_every_n_epoch": 1,
         "val_check_interval": 0.1,

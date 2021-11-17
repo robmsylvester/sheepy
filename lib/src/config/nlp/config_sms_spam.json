@@ -22,7 +22,7 @@
         "context_labels": "remove",
         "n_prev_text_samples_sample_size": 4,
         "n_next_text_samples_sample_size": 4,
-        "batch_size": 32,
+        "batch_size": 16,
         "num_dense_layers": 3,
         "dense_layer_scale_factor": 0.75,
         "save_epoch_count": 4,
@@ -41,7 +41,7 @@
         "unknown_index": 0
     },
     "validation": {
-        "metric": "auroc",
+        "metric": "val_AUROC",
         "metric_goal": "max",
         "check_val_every_n_epoch": 1,
         "val_check_interval": 0.5,
@@ -53,7 +53,7 @@
         "name": "sweep_v1",
         "method": "bayes",
         "metric": {
-            "name": "auroc",
+            "name": "val_AUROC",
             "goal": "max"
         },
         "parameters": {
