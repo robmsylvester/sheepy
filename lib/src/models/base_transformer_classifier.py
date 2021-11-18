@@ -15,7 +15,6 @@ from lib.src.common.tokenizer import mask_fill
 from lib.src.models.base_classifier import BaseClassifier
 from lib.src.models.fully_connected_classifier import FullyConnectedClassifier
 from lib.src.nlp.text_representation import TextRepresentation
-from lib.src.metrics.classification_metrics import ClassificationMetrics
 
 
 # TODO -make decision here - replace args with hparams or leave and get silentily tracked by lightning. hmmmmmmmm
@@ -62,16 +61,6 @@ class TransformerClassifier(BaseClassifier):
         layer_config[-1]['dropout_p'] = 0
 
         self.classification_head = FullyConnectedClassifier(layer_config)
-    
-    def _build_metrics(self) -> None:
-        """Builds out the basic metrics for a binary classifier.
-        """
-        assert len(self.data.label_encoder.vocab) == 2, "Cannot use a binary classification metric unless you have binary labels. Labels are {}".format(self.data.label_encoder.vocab)
-        self.metrics = ClassificationMetrics(
-            self.data.label_encoder.vocab,
-            pos_label=1, #TODO - this must become a param in config profile for metrics
-            logger=self.logger
-        )
 
     def _build_loss(self):
         """ Initializes the loss function/s."""

@@ -34,6 +34,7 @@ class Experiment():
             self.args.sweep = config["sweep"]
             self.args.validation = config["validation"]
             self.args.hparams = config["hparams"]
+            self.args.metrics = config["metrics"]
 
     def prepare_trainer(self, data_module_cls: pl.LightningDataModule, model_cls: pl.LightningModule, pretrained_experiment_folder: str = None):
         """

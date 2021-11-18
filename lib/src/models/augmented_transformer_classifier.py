@@ -14,8 +14,7 @@ class AugmentedTransformerClassifier(TransformerClassifier):
     This model builds upon the text representation class then attaches a head from the fully connected classifier class,
     stitching them together according to your config params.
 
-    The difference between this transformer and the other one is that it has other features concatenated, such as topics,
-    as well as possibly other text representations
+    The difference between this transformer and the other one is that it has other features concatenated
 
     :param args: ArgumentParser containing the hyperparameters.
     :param data: LightningDataModule object containing implementations of train_dataloader, val_dataloader,

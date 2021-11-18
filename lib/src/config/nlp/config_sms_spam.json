@@ -9,6 +9,28 @@
         "model": "transformer_classifier",
         "restore_from_checkpoint": false
     },
+    "metrics": [
+        {
+            "name": "accuracy",
+            "average": "micro"
+        },
+        {
+            "name": "auroc",
+            "average": "macro"
+        },
+        {
+            "name": "f1",
+            "average": "macro"
+        },
+        {
+            "name": "precision",
+            "average": "micro"
+        },
+        {
+            "name": "recall",
+            "average": null
+        }
+    ],
     "hparams": {
         "label": "label",
         "text": "text",
@@ -41,7 +63,7 @@
         "unknown_index": 0
     },
     "validation": {
-        "metric": "val_AUROC",
+        "metric": "val/AUROC",
         "metric_goal": "max",
         "check_val_every_n_epoch": 1,
         "val_check_interval": 0.5,
@@ -53,7 +75,7 @@
         "name": "sweep_v1",
         "method": "bayes",
         "metric": {
-            "name": "val_AUROC",
+            "name": "val/AUROC",
             "goal": "max"
         },
         "parameters": {

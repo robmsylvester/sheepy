@@ -1,59 +1,69 @@
 import torch
 from typing import List, Any
 from lib.src.common.logger import get_std_out_logger
-from torchmetrics import MetricCollection, Accuracy, Precision, Recall, AUROC, F1
+from torchmetrics import MetricCollection, Accuracy, Precision, Recall, AUROC, F1, ROC, AUC, AveragePrecision
+from torchnlp.encoders import LabelEncoder
 
+#TODO - need to add LabelEncoder/dict on here if user passes pos_label argument in metrics so we can decode it to get its integer representation
 class ClassificationMetrics():
     def __init__(self,
         labels: List[Any],
-        pos_label=1,
-        multilabel=False,
-        separate_multiclass_labels=False,
+        config: dict,
         logger=None):
         """A class to help abstract the classification metrics that are reported and sent to PyTorch Lightning's
         validation epoch callbacks as well as Weights and Biases visualizations.
 
         Args:
-            labels (List[Any]): List of all labels in your dataset.
-            pos_label (int, optional): If binary, the label that is considered positive. Ignored if len(labels) > 2. Defaults to 1
-            multilabel (bool, optional): If True, will create metrics for a multiclass, multilabel classifier. Defaults to False.
-            separate_multiclass_labels (bool, optional): If True, will separate metrics for multiclass labels (f1, precision, recall). 
-                Otherwise will combine them weighted by the number of samples in the dataset. Defaults to False.
-            logger ([type], optional): Logger to console. Defaults to None to get standard logger
+            labels (List[Any]): List of labels in the dataset you expect to see. Needed to instantiate metric classes
+            config (Dict): Metric Config JSON from your experiment config profile
+            logger ([Any], optional): Logger to console. Defaults to None to get standard logger
         """
-    
+        self.num_labels = len(labels)
         self.logger = get_std_out_logger() if logger is None else logger
-        self.labels = labels
-        self.num_labels=len(labels)
-        self.pos_label=pos_label
-        self.multilabel=multilabel
-        self.separate_multiclass_labels=separate_multiclass_labels
-        self.classification_threshold = 0.5 #move to config profile
+        self.config = config
 
-        if self.num_labels < 2:
-            raise ValueError("Metrics are ill-defined for fewer than two labels. Currently see {} labels, namely {} ".format(self.num_labels, self.labels))
-        else:
-            if self.multilabel:
-                self.logger.info("Instantiated multi-label classification metrics for {} labels".format(self.num_labels))
-            else:
-                self.logger.info("Instantiated single-label classification metrics for {} labels".format(self.num_labels))
+        self.torchmetrics_map = {
+            'auroc': AUROC,
+            'f1': F1,
+            'precision': Precision,
+            'recall': Recall,
+            'accuracy': Accuracy,
+            'roc': ROC,
+            'average_precision': AveragePrecision,
+            'auc': AUC,
+        }
 
         self._create_metrics()
     
     def _create_metrics(self):
         """Instantiates the auroc, f1, precision, and recall based upon the initialization args for the class"""
-        self.accuracy = Accuracy(dist_sync_on_step=True, threshold = self.classification_threshold, num_classes=self.num_labels, average="micro" if self.num_labels == 2 else "macro")
-        self.precision = Precision(dist_sync_on_step=True, num_classes=self.num_labels, average="micro" if self.num_labels == 2 else "macro")
-        self.recall = Recall(dist_sync_on_step=True, threshold = self.classification_threshold, num_classes=self.num_labels, average="micro" if self.num_labels == 2 else "macro")
-        self.auroc = AUROC(dist_sync_on_step=True, num_classes=self.num_labels, average="macro")
-        self.f1 = F1(dist_sync_on_step=True, threshold = self.classification_threshold, num_classes=self.num_labels, average="micro" if self.num_labels == 2 else "macro")
-        self.metric_collection = MetricCollection([self.accuracy, self.precision, self.recall, self.auroc, self.f1])
-        self.train_metrics = self.metric_collection.clone(prefix='train_')
-        self.validation_metrics = self.metric_collection.clone(prefix='val_')
+        tracked_metrics = []
+        for metric_dict in self.config:
+            if metric_dict['name'] in self.torchmetrics_map:
+                metric_class = self.torchmetrics_map[metric_dict['name']]
+                args_dict = metric_dict.copy()
+                del args_dict['name']
+                args_dict['num_classes'] = self.num_labels
+                args_dict['dist_sync_on_step']=True
+                metric = metric_class(**args_dict)
+                tracked_metrics.append(metric)
+            else:
+                self.logger.warn("Metric {} not found and will be ignored. See classification_metrics.py and verify that your metric is mapped to a torchmetrics class")
+
+        self.metric_collection = MetricCollection(tracked_metrics)
+        self.train_metrics = self.metric_collection.clone(prefix='train/')
+        self.validation_metrics = self.metric_collection.clone(prefix='val/')
+        self.test_metrics = self.metric_collection.clone(prefix='test/')
     
-    def compute_metrics(self, logits: torch.Tensor, labels: torch.Tensor, validation=True) -> torch.Tensor:
-        #self.accuracy.update(logits.cpu(), labels.cpu())
-        out = self.validation_metrics(logits.cpu(), labels.cpu()) if validation else self.train_metrics(logits.cpu(), labels.cpu())
+    def compute_metrics(self, logits: torch.Tensor, labels: torch.Tensor, stage: str) -> torch.Tensor:
+        if stage == "train":
+            out = self.train_metrics(logits.cpu(), labels.cpu())
+        elif stage == "val":
+            out = self.validation_metrics(logits.cpu(), labels.cpu())
+        elif stage == "test":
+            out = self.test_metrics(logits.cpu(), labels.cpu())
+        else:
+            raise ValueError("stage to compute metrics must be either 'train', 'val', or 'test'. Instead, passed {}".format(stage))
         return out
 
         
