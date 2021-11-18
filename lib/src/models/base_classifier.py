@@ -162,8 +162,7 @@ class BaseClassifier(pl.LightningModule):
         if self.trainer.use_dp or self.trainer.use_ddp2:
             loss_train = loss_train.unsqueeze(0)
 
-        self.log('train/step_loss', loss_train, on_step=True,
-                 on_epoch=True, prog_bar=True, logger=True)
+        self.log('train/loss', loss_train, on_step=True, on_epoch=True, prog_bar=True, logger=True)
 
         output = OrderedDict({
             "loss": loss_train, #we would normally want to name this 'train/loss', but pytorch lightning wants it to be 'loss'
@@ -183,11 +182,24 @@ class BaseClassifier(pl.LightningModule):
         Returns:
             None
         """
-        output_metrics = self.metrics.compute_metrics(outputs['logits'], outputs['target'], stage='train')
         outputs['loss'] = outputs['loss'].sum() #To backpropagate, loss needs to be aggregated across GPUs
-        output_metrics['train/loss'] = outputs['loss']
-        self.log_dict(output_metrics)
+        output_metrics = self.metrics.compute_metrics(outputs['logits'], outputs['target'], stage='train')
+        self.log_dict(output_metrics, on_step=True, on_epoch=True)
         return outputs
+
+    def training_epoch_end(self, outputs: list) -> dict:
+        """Runs pytorch lightning validation_epoch_end_function. For more details, see
+        _run_epoch_end_metrics
+
+        Args:
+            outputs - list of dictionaries returned by step, across multiple gpus.
+
+        Returns:
+            - Dictionary with metrics to be added to the lightning logger.  
+        """
+        cm = self._create_confusion_matrix(outputs, name="Train Epoch Confusion Matrix")
+        self.log("train/epoch_confusion_matrix", cm, on_step=False, on_epoch=True)
+        return None
 
     # TODO - this implementation is too specific for the base class. Move to children
     def validation_step(self, batch: tuple, batch_nb: int, *args, **kwargs) -> dict:
@@ -230,77 +242,9 @@ class BaseClassifier(pl.LightningModule):
             None
         """
         output_metrics = self.metrics.compute_metrics(outputs['logits'], outputs['target'], stage='val')
-        self.log_dict(output_metrics)
+        self.log_dict(output_metrics, on_step=False, on_epoch=True)
         return outputs
     
-    def _run_epoch_end_metrics(self, outputs: list, stage: str) -> dict:
-        """Function that takes as input a list of dictionaries returned by the individual step functions
-        function and measures the model performance accross the entire set.
-
-        A lot of this logic here defines what to do in the case of multiple GPU's. In this case,
-        what we do with the loss is average the number out across the GPU's.
-
-        For other metrics, we can detach all of the predictions and targets from the GPU, concatenate them,
-        and just calculate them as one large vector.
-
-        Args:
-            outputs (list): [description]
-            stage (str): [description]
-
-        Returns:
-            dict: [description]
-        """
-        if stage=="train":
-            confusion_matrix_name = "Train Confusion Matrix"
-        elif stage=="val":
-            confusion_matrix_name = "Validation Confusion Matrix"
-        elif stage=="test":
-            confusion_matrix_name = "Test Confusion Matrix"
-        else:
-            raise ValueError("stage arg must be set to 'train', 'val', or 'test'. Currently set as {}".format(stage))
-
-        loss_mean = 0
-
-        logits = torch.cat([output['logits']
-                          for output in outputs]).detach().cpu()
-        pred = torch.argmax(logits, dim=1)
-        target = torch.cat([output['target']
-                            for output in outputs]).detach().cpu()
-
-        output_metrics = self.metrics.compute_metrics(logits, target, stage=stage)
-
-        # The confusion matrix we can construct always, regardless of whether or not we have any positives
-        cm = self._create_confusion_matrix(pred, target, confusion_matrix_name)
-
-        # We will use the mean loss across all of the GPU's as the loss
-        for output in outputs:
-            loss = output['loss' if stage=='train' else stage+"/loss"]
-
-            # reduce manually when using dp or ddp2
-            if self.trainer.use_dp or self.trainer.use_ddp2:
-                loss = torch.mean(loss)
-            loss_mean += loss
-
-        loss_mean /= len(outputs)
-
-        output_metrics[stage+'/loss'] = loss_mean
-        output_metrics[stage+'/cm'] = cm
-        return output_metrics
-
-    def training_epoch_end(self, outputs: list) -> dict:
-        """Runs pytorch lightning validation_epoch_end_function. For more details, see
-        _run_epoch_end_metrics
-
-        Args:
-            outputs - list of dictionaries returned by step, across multiple gpus.
-
-        Returns:
-            - Dictionary with metrics to be added to the lightning logger.  
-        """
-        output_metrics = self._run_epoch_end_metrics(outputs, stage="train")
-        self.log_metrics(output_metrics)
-        return None
-
     def validation_epoch_end(self, outputs: list) -> dict:
         """Runs pytorch lightning validation_epoch_end_function. For more details, see
         _run_epoch_end_metrics
@@ -311,11 +255,10 @@ class BaseClassifier(pl.LightningModule):
         Returns:
             - Dictionary with metrics to be added to the lightning logger.  
         """
-        output_metrics = self._run_epoch_end_metrics(outputs, stage="val")
-
-        self.log_metrics(output_metrics)
+        cm = self._create_confusion_matrix(outputs, name="Validation Epoch Confusion Matrix")
+        self.log("val/epoch_confusion_matrix", cm, on_step=False, on_epoch=True)
         return None
-
+    
     def test_step(self, batch: tuple, batch_idx: int):
         """
         PyTorch Lightning function called once per test step
@@ -341,7 +284,7 @@ class BaseClassifier(pl.LightningModule):
         self.data.write_predictions_to_disk(df_collected)
         return None
 
-    def _create_confusion_matrix(self, predictions: torch.tensor, target: torch.tensor, name="Confusion Matrix"):
+    def _create_confusion_matrix(self, outputs: list, name="Confusion Matrix"):
         """
         Given predictions and targets tensors, create a visual confusion matrix from matplotlib that can
         be loaded into weights and biases under the 'Media' tab. Use this pattern to add more visuals.
@@ -350,8 +293,15 @@ class BaseClassifier(pl.LightningModule):
             predictios: torch.tensor: the raw numeric predictions of the classifier.
             targets: torch.tensor: the raw numeric target labels of the classifier.
         """
-        predictions = self.data.label_encoder.batch_decode(predictions)
-        target = self.data.label_encoder.batch_decode(target)
+
+        logits = torch.cat([output['logits']
+                          for output in outputs]).detach().cpu()
+        pred = torch.argmax(logits, dim=1)
+        trg = torch.cat([output['target']
+                            for output in outputs]).detach().cpu()
+
+        predictions = self.data.label_encoder.batch_decode(pred)
+        target = self.data.label_encoder.batch_decode(trg)
 
         confmatrix = confusion_matrix(
             predictions, target, labels=self.data.label_encoder.vocab)

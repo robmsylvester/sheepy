@@ -28,7 +28,7 @@
         },
         {
             "name": "recall",
-            "average": null
+            "average": "micro"
         }
     ],
     "hparams": {

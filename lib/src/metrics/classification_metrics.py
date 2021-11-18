@@ -56,14 +56,14 @@ class ClassificationMetrics():
         self.test_metrics = self.metric_collection.clone(prefix='test/')
     
     def compute_metrics(self, logits: torch.Tensor, labels: torch.Tensor, stage: str) -> torch.Tensor:
-        if stage == "train":
+        if stage == "train" or stage == "train_epoch":
             out = self.train_metrics(logits.cpu(), labels.cpu())
-        elif stage == "val":
+        elif stage == "val" or stage == "val_epoch":
             out = self.validation_metrics(logits.cpu(), labels.cpu())
-        elif stage == "test":
+        elif stage == "test" or stage == "test_epoch":
             out = self.test_metrics(logits.cpu(), labels.cpu())
         else:
-            raise ValueError("stage to compute metrics must be either 'train', 'val', or 'test'. Instead, passed {}".format(stage))
+            raise ValueError("stage to compute metrics must be either 'train', 'val', or 'test', 'train_epoch', 'val_epoch', or 'test_epoch'. Instead, passed {}".format(stage))
         return out
 
         
