@@ -1,13 +1,14 @@
-1. validation_epoch_end split for multiclass vs multilabel
+1. test_step_end, test_epoch_end
 2. data loader on separate files
-3. evaluation fix
+3. done
 4. remove data loading from prepare_data function
 5. remove setup.py dependency
-6. remove sklearn and just use torchmetrics for accuracy, f1, precision, recall
+6. done
 7. update the libaries for wandb and pytl
 8. done
 9. FC classifier should take a list of sizes, not that scale parameter bs
-10. batch prediction
+10. batch prediction via predict_step()
 11. doc strings standardized
 12. done
-13. train, validation, test as multiple files
+13. multiclass and multilabel
+14. update README

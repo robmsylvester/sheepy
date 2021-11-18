@@ -110,6 +110,7 @@ def main():
         else:
             experiment.prepare_trainer(data_module, model)
             experiment.train()
+            experiment.test()
 
 
 if __name__ == '__main__':

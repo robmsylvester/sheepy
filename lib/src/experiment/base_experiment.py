@@ -141,16 +141,6 @@ class Experiment():
         """
         self.model.evaluate_file(*args, **kwargs)
 
-    def evaluate(self) -> List[dict]:
-        """
-        The main evaluate() call that calls a PyTorch Trainer. This expects a model that
-        has been loaded from a checkpoint as well as a test dataloader that was prepared
-        in the model itself.
-
-        """
-        self.trainer.test(model=self.model,
-                          test_dataloaders=self.data.test_dataloader())
-
     def _dump_args(self):
         """Helper function that will dump all arguments into a model's directory
         so it can be loaded/examined at a later date"""
@@ -244,6 +234,13 @@ class Experiment():
 
     def train(self):
         self.trainer.fit(self.model, self.data)
+    
+    def test(self):
+        self.trainer.test(self.model, test_dataloaders=self.data.test_dataloader())
+    
+    #TODO remove this
+    def evaluate(self):
+        return self.test()
 
     def predict(self, sample: dict):
         return self.model.predict(self.data, sample)

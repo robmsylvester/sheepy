@@ -141,7 +141,7 @@ class BaseClassifier(pl.LightningModule):
         """
         return self._loss(predictions["logits"], targets["labels"])
 
-    def training_step(self, batch: tuple, batch_nb: int, *args, **kwargs) -> dict:
+    def training_step(self, batch: tuple, batch_idx: int, *args, **kwargs) -> dict:
         """ 
         Runs one training step. This usually consists in the forward function followed
             by the loss function.
@@ -202,34 +202,17 @@ class BaseClassifier(pl.LightningModule):
         return None
 
     # TODO - this implementation is too specific for the base class. Move to children
-    def validation_step(self, batch: tuple, batch_nb: int, *args, **kwargs) -> dict:
-        """ Similar to the training step but with the model in eval mode.
+    def validation_step(self, batch: tuple, batch_nb: int) -> OrderedDict:
+        """[summary]
 
         Args:
-            batch - tuple of the features and labels
-            batch_nb - integer specifying the batch iteration number
+            batch (tuple): [description]
+            batch_nb (int): [description]
 
         Returns:
-            - dictionary passed to the validation_end function.
+            OrderedDict: [description]
         """
-        inputs, targets, _ = batch
-        model_out = self.forward(**inputs)
-        loss_val = self.loss(model_out, targets)
-
-        labels = targets["labels"]
-        logits = model_out["logits"]
-
-        # in DP mode (default) make sure if result is scalar, there's another dim in the beginning
-        if self.trainer.use_dp or self.trainer.use_ddp2:
-            loss_val = loss_val.unsqueeze(0)
-
-        output = OrderedDict({
-            "val/loss": loss_val,
-            "logits": logits,
-            "target": labels
-        })
-
-        return output
+        return self._shared_evaluation_step(batch, batch_nb, stage="val")
     
     def validation_step_end(self, outputs: dict):
         """Synchronizes metrics across GPU's in DP mode by updating and computing given the dictionary
@@ -259,30 +242,89 @@ class BaseClassifier(pl.LightningModule):
         self.log("val/epoch_confusion_matrix", cm, on_step=False, on_epoch=True)
         return None
     
-    def test_step(self, batch: tuple, batch_idx: int):
+    def test_step(self, batch: tuple, batch_idx: int) -> OrderedDict:
+        """[summary]
+
+        Args:
+            batch (tuple): [description]
+            batch_idx (int): [description]
+
+        Returns:
+            OrderedDict: [description]
+        """
+        return self._shared_evaluation_step(batch, batch_idx, stage="test")
+
+    def test_step_end(self, outputs: list) -> dict:
+        """[summary]
+
+        Args:
+            outputs (list): [description]
+
+        Returns:
+            dict: [description]
+        """
+
+        # df = pd.DataFrame(
+        #     list(map(int, output_results['sample_id_keys'].tolist())),
+        #     columns=[self.data.sample_id_col]
+        # )
+
+        # softmax_p = F.softmax(output_results['logits'], dim=1).tolist()
+        # df[self.data.args.output_key] = softmax_p
+
+        # return df
+        output_metrics = self.metrics.compute_metrics(outputs['logits'], outputs['target'], stage='test')
+        self.log_dict(output_metrics, on_step=False, on_epoch=True)
+        return outputs
+
+    def test_epoch_end(self, outputs: list) -> dict:
+        """Triggers self.data to write predictions to the disk"""
+        # df_collected = pd.concat(outputs)
+        # self.data.write_predictions_to_disk(df_collected)
+        # return None
+        cm = self._create_confusion_matrix(outputs, name="Test Epoch Confusion Matrix")
+        self.log("test/epoch_confusion_matrix", cm, on_step=False, on_epoch=True)
+        return None
+    
+    def _shared_evaluation_step(self, batch: tuple, batch_idx: int, stage: str) -> OrderedDict:
+        """[summary]
+
+        Args:
+            batch (tuple): [description]
+            batch_idx (int): [description]
+            stage (str): [description]
+
+        Returns:
+            OrderedDict: [description]
+        """
+        inputs, targets, _ = batch
+        model_out = self.forward(**inputs)
+        loss_val = self.loss(model_out, targets)
+
+        labels = targets["labels"]
+        logits = model_out["logits"]
+
+        # in DP mode (default) make sure if result is scalar, there's another dim in the beginning
+        if self.trainer.use_dp or self.trainer.use_ddp2:
+            loss_val = loss_val.unsqueeze(0)
+
+        loss_key = stage + '/loss'
+        output = OrderedDict({
+            loss_key: loss_val,
+            "logits": logits,
+            "target": labels
+        })
+
+        return output
+
+    
+    def predict_step(self, batch: tuple, batch_idx: int, dataloader_idx: int=0):
         """
         PyTorch Lightning function called once per test step
         """
-        inputs, _, ids = batch  # we don't care about the targets
+        inputs, _, ids = batch
         model_out = self.forward(**inputs)
         return {**model_out, **ids}
-
-    def test_step_end(self, output_results):
-        df = pd.DataFrame(
-            list(map(int, output_results['sample_id_keys'].tolist())),
-            columns=[self.data.sample_id_col]
-        )
-
-        softmax_p = F.softmax(output_results['logits'], dim=1).tolist()
-        df[self.data.args.output_key] = softmax_p
-
-        return df
-
-    def test_epoch_end(self, outputs):
-        """Triggers self.data to write predictions to the disk"""
-        df_collected = pd.concat(outputs)
-        self.data.write_predictions_to_disk(df_collected)
-        return None
 
     def _create_confusion_matrix(self, outputs: list, name="Confusion Matrix"):
         """
