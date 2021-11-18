@@ -1,4 +1,4 @@
-1. test_step_end, test_epoch_end
+1. done
 2. data loader on separate files
 3. done
 4. remove data loading from prepare_data function

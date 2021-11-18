@@ -62,24 +62,22 @@ class Experiment():
         # Then we load up a model, and make sure it agrees with the data.
         self.model = model_cls(self.args, self.data)
         self._build_callbacks()
-        self._build_trainer()  # TODO - checkpoint check here?
+        self._build_trainer()
 
         self._prepare_logger()
 
     # TODO: merge this method with prepare_trainer()
     def prepare_evaluator(self, data_module_cls: pl.LightningDataModule, model_cls: pl.LightningModule):
-        """
-        Implements transfer learning
+        """Runs through all the module loading and checks to get the model ready to run evaluation.
+
         Args:
-            data_module_cls - pl.LightningDataModule, Your data module class, which lives somewhere in src/data_modules
-            model_cls - pl.LightningModule, Your model module class, which lives somewhere in src/models
+            data_module_cls (pl.LightningDataModule): Your data module class, which lives somewhere in src/data_modules
+            model_cls (pl.LightningModule): pl.LightningModule, Your model module class, which lives somewhere in src/models
             will automatically look at args.output_dir
 
         Raises:
             ValueError: If pretrained experiment folder doesn't exist or doesn't have the necessary files (data module, checkpoints folder, wandb folder, args.json)
-
         """
-
         if self.args.pretrained_dir:
             load_from_checkpoint = True
             self.logger.info("Loading model from {}".format(
@@ -173,7 +171,7 @@ class Experiment():
         else:
             log, log_steps = None, None
         # TODO - self.log_hyperparams and self.log_metrics should be called here too eventually
-        self.wandb.watch(self.model, log=None, log_freq=log_steps)
+        self.wandb.watch(self.model, log="all", log_freq=log_steps)
 
     def _build_callbacks(self):
         """Helper function that reads model config arguments and builds out which callbacks need to run. A callback is
@@ -227,8 +225,7 @@ class Experiment():
             accumulate_grad_batches=self.args.hparams['accumulate_grad_batches'],
             max_epochs=self.args.hparams['num_epochs'],
             val_check_interval=self.args.validation['val_check_interval'],
-            accelerator="dp" if self.args.n_gpu >= 2 else None,
-            amp_level='O1',
+            strategy="dp" if self.args.n_gpu >= 2 else None,
             precision=self.args.precision
         )
 
@@ -237,13 +234,9 @@ class Experiment():
     
     def test(self):
         self.trainer.test(self.model, test_dataloaders=self.data.test_dataloader())
-    
-    #TODO remove this
-    def evaluate(self):
-        return self.test()
 
-    def predict(self, sample: dict):
-        return self.model.predict(self.data, sample)
+    def predict(self):
+        self.trainer.predict(self.model, self.data)
 
     @classmethod
     def add_model_specific_args(cls, parser: argparse.ArgumentParser) -> argparse.ArgumentParser:

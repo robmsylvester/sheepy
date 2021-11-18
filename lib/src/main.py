@@ -39,7 +39,6 @@ def main():
     parser = get_parser()
     args, _ = parser.parse_known_args()
 
-    # TODO - this will need to move out eventually, but wait until getting green light on image run datasets so we dont have to change experiment class
     with open(args.config, 'r') as f:
         config = json.load(f)
         try:
@@ -62,13 +61,10 @@ def main():
     # Use the environment to verify a few additional arguments
     args = parser.parse_args()
 
-    # TODO - everything from here until the experiment instantiation line should be put in the Experiment class, but wait for Nidhi's approval on this for image_run.py since it involves changes to Experiment.py
     args.n_gpu = torch.cuda.device_count()
-    # default to 32-bit precision on cpu
     args.precision = 16 if args.fp16 and args.n_gpu > 0 else 32
 
     # Verify model output directories - #TODO - move this all to experiment class
-
     if args.evaluate:
         if args.experiment_name is None or args.output_key is None:
             raise ValueError(
@@ -106,7 +102,7 @@ def main():
         experiment = Experiment(args)
         if args.evaluate:
             experiment.prepare_evaluator(data_module, model)
-            experiment.evaluate()
+            experiment.predict()
         else:
             experiment.prepare_trainer(data_module, model)
             experiment.train()

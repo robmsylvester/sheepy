@@ -32,10 +32,32 @@ class SmsSpamDataModule(BaseCSVDataModule):
                 label, text = line[0], line[1]
                 dataset = dataset.append({self.text_col: text, self.label_col: label}, ignore_index=True)
 
-        return dataset        
+        return dataset
+    
+    def _read_evaluation_file(self, filepath: str) -> pd.DataFrame:
+        """Reads a file that contains text only on each line
+
+        Returns:
+            pd.DataFrame: Dataframe of examples with text column
+        """
+        column_names = [self.text_col]
+        dataset = pd.DataFrame(columns=column_names)
+        with open(filepath, "r") as data_file:
+            for line in data_file:
+                text = line.strip()
+                dataset = dataset.append({self.text_col: text}, ignore_index=True)
+        return dataset
 
     def prepare_data(self):
         "Downloads the data if it doesn't exist. Unzips it, and deletes the zip file. Reads the data file"
+        if self.evaluate:
+            self.logger.info("Reading evaluation dataset directory {}".format(self.args.data_dir))
+            self.dataframes = []
+            for f in os.listdir(self.args.data_dir):
+                if f.endswith(".txt"):
+                    self.dataframes.append(self._read_evaluation_file(os.path.join(self.args.data_dir, f)))
+            return
+        
         if not os.path.exists(self.args.data_dir):
             os.makedirs(self.args.data_dir)
         

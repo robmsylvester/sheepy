@@ -1,16 +1,9 @@
 import torch
 import argparse
 import pytorch_lightning as pl
-import numpy as np
 import wandb
-import pandas as pd
-import plotly.graph_objects as go
-from sklearn.metrics import confusion_matrix
-from torch.nn import functional as F
-from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning import LightningDataModule
 from collections import OrderedDict
-from lib.src.common.logger import get_std_out_logger
 from lib.src.metrics.classification_metrics import ClassificationMetrics
 
 # TODO - replace args with args or leave and get implicitly tracked by lightning. hmmmm
@@ -29,10 +22,8 @@ class BaseClassifier(pl.LightningModule):
         super().__init__()
         self.args = args
         self.data = data
-        self.logger = logger if logger is not None else get_std_out_logger()
         self._build_metrics()
         self._set_tune_params()
-        # self.save_hyperparameters()
 
     def _set_tune_params(self):
         # TODO - we may want to support iterating through other config than hparams, such as the encoder_model
@@ -41,8 +32,7 @@ class BaseClassifier(pl.LightningModule):
             for k, v in wandb.config.items():
                 if k in self.args.hparams:
                     self.args.hparams[k] = v
-                    self.logger.debug(
-                        "Setting model hyperparameter {} to sweep value {}".format(k, v))
+                    print("Setting model hyperparameter {} to sweep value {}".format(k, v))
 
     def _build_model(self):
         raise NotImplementedError(
@@ -54,9 +44,7 @@ class BaseClassifier(pl.LightningModule):
         """
         self.metrics = ClassificationMetrics(
             self.data.label_encoder.vocab,
-            self.args.metrics,
-            logger=self.logger
-        )
+            self.args.metrics        )
 
     def _get_class_weights(self):
         """
@@ -76,19 +64,19 @@ class BaseClassifier(pl.LightningModule):
             label_index = self.data.label_encoder.encode(class_name)
             weights[label_index] = 1./ratio
 
-        self.logger.info("\nClass weights:\n{}".format(weights))
+        print("\nClass weights:\n{}".format(weights))
         return torch.tensor(weights)
 
-    def log_metrics(self, metrics: dict):
-        """Helper function to track metrics by wandb"""
-        if not isinstance(self.logger, WandbLogger):
-            raise ValueError("self.logger is not a wandb logger")
-        self.logger.log_metrics(metrics)
+    # def log_metrics(self, metrics: dict):
+    #     """Helper function to track metrics by wandb"""
+    #     if not isinstance(self.logger, WandbLogger):
+    #         raise ValueError("self.logger is not a wandb logger")
+    #     self.logger.log_metrics(metrics)
 
-    def log_hyperparams(self):
-        """Helper function to track hyperparameters by wandb"""
-        if not isinstance(self.logger, WandbLogger):
-            return
+    # def log_hyperparams(self):
+    #     """Helper function to track hyperparameters by wandb"""
+    #     if not isinstance(self.logger, WandbLogger):
+    #         return
 
     def _build_loss(self):
         """ Initializes the loss function """
@@ -100,17 +88,17 @@ class BaseClassifier(pl.LightningModule):
         raise NotImplementedError(
             "configure_optimizers() has not been implemented. You must override this in your classifier")
 
-    def predict(self, data_module: LightningDataModule, sample: dict) -> dict:
-        """Evaluation function
+    # def predict(self, data_module: LightningDataModule, sample: dict) -> dict:
+    #     """Evaluation function
 
-        Args:
-            data_module (LightningDataModule): module with method prepare_sample()
-            sample (dict): Dictionary with correct key that specifies text column and value as text we want to classify
+    #     Args:
+    #         data_module (LightningDataModule): module with method prepare_sample()
+    #         sample (dict): Dictionary with correct key that specifies text column and value as text we want to classify
 
-        Returns:
-            dict: Dictionary with the input text and the predicted label.
-        """
-        pass
+    #     Returns:
+    #         dict: Dictionary with the input text and the predicted label.
+    #     """
+    #     pass
 
     def evaluate_live(self):
         """
@@ -158,10 +146,6 @@ class BaseClassifier(pl.LightningModule):
         logits = model_out["logits"]
         labels = targets["labels"]
 
-        # in DP mode (default) make sure if result is scalar, there's another dim in the beginning
-        if self.trainer.use_dp or self.trainer.use_ddp2:
-            loss_train = loss_train.unsqueeze(0)
-
         self.log('train/loss', loss_train, on_step=True, on_epoch=True, prog_bar=True, logger=True)
 
         output = OrderedDict({
@@ -198,7 +182,8 @@ class BaseClassifier(pl.LightningModule):
             - Dictionary with metrics to be added to the lightning logger.  
         """
         cm = self._create_confusion_matrix(outputs, name="Train Epoch Confusion Matrix")
-        self.log("train/epoch_confusion_matrix", cm, on_step=False, on_epoch=True)
+        self.logger.experiment.log({"train/epoch_confusion_matrix": cm})
+        #self.log("train/epoch_confusion_matrix", cm, on_step=False, on_epoch=True)
         return None
 
     # TODO - this implementation is too specific for the base class. Move to children
@@ -239,7 +224,7 @@ class BaseClassifier(pl.LightningModule):
             - Dictionary with metrics to be added to the lightning logger.  
         """
         cm = self._create_confusion_matrix(outputs, name="Validation Epoch Confusion Matrix")
-        self.log("val/epoch_confusion_matrix", cm, on_step=False, on_epoch=True)
+        self.logger.experiment.log({"val/epoch_confusion_matrix": cm}) #, on_step=False, on_epoch=True)
         return None
     
     def test_step(self, batch: tuple, batch_idx: int) -> OrderedDict:
@@ -283,8 +268,24 @@ class BaseClassifier(pl.LightningModule):
         # self.data.write_predictions_to_disk(df_collected)
         # return None
         cm = self._create_confusion_matrix(outputs, name="Test Epoch Confusion Matrix")
-        self.log("test/epoch_confusion_matrix", cm, on_step=False, on_epoch=True)
+        self.logger.experiment.log({"test/epoch_confusion_matrix": cm})
+        #self.log("test/epoch_confusion_matrix", cm, on_step=False, on_epoch=True)
         return None
+    
+    def predict_step(self, batch: tuple, batch_idx: int, dataloader_idx: int=0):
+        """PyTorch Lightning function to do raw batch prediction
+
+        Args:
+            batch (tuple): [description]
+            batch_idx (int): [description]
+            dataloader_idx (int, optional): [description]. Defaults to 0.
+
+        Returns:
+            [type]: [description]
+        """
+        inputs, _, ids = batch
+        model_out = self.forward(**inputs)
+        return {**model_out, **ids}
     
     def _shared_evaluation_step(self, batch: tuple, batch_idx: int, stage: str) -> OrderedDict:
         """[summary]
@@ -305,8 +306,8 @@ class BaseClassifier(pl.LightningModule):
         logits = model_out["logits"]
 
         # in DP mode (default) make sure if result is scalar, there's another dim in the beginning
-        if self.trainer.use_dp or self.trainer.use_ddp2:
-            loss_val = loss_val.unsqueeze(0)
+        # if self.trainer.use_dp or self.trainer.use_ddp2:
+        #     loss_val = loss_val.unsqueeze(0)
 
         loss_key = stage + '/loss'
         output = OrderedDict({
@@ -317,25 +318,8 @@ class BaseClassifier(pl.LightningModule):
 
         return output
 
-    
-    def predict_step(self, batch: tuple, batch_idx: int, dataloader_idx: int=0):
-        """
-        PyTorch Lightning function called once per test step
-        """
-        inputs, _, ids = batch
-        model_out = self.forward(**inputs)
-        return {**model_out, **ids}
-
+    #TODO - move this function
     def _create_confusion_matrix(self, outputs: list, name="Confusion Matrix"):
-        """
-        Given predictions and targets tensors, create a visual confusion matrix from matplotlib that can
-        be loaded into weights and biases under the 'Media' tab. Use this pattern to add more visuals.
-
-        Args:
-            predictios: torch.tensor: the raw numeric predictions of the classifier.
-            targets: torch.tensor: the raw numeric target labels of the classifier.
-        """
-
         logits = torch.cat([output['logits']
                           for output in outputs]).detach().cpu()
         pred = torch.argmax(logits, dim=1)
@@ -344,39 +328,8 @@ class BaseClassifier(pl.LightningModule):
 
         predictions = self.data.label_encoder.batch_decode(pred)
         target = self.data.label_encoder.batch_decode(trg)
-
-        confmatrix = confusion_matrix(
-            predictions, target, labels=self.data.label_encoder.vocab)
-        confdiag = np.eye(len(confmatrix)) * confmatrix
-        np.fill_diagonal(confmatrix, 0)
-
-        confmatrix = confmatrix.astype('float')
-        n_confused = np.sum(confmatrix)
-        confmatrix[confmatrix == 0] = np.nan
-        confmatrix = go.Heatmap({'coloraxis': 'coloraxis1', 'x': self.data.label_encoder.vocab, 'y': self.data.label_encoder.vocab, 'z': confmatrix,
-                                 'hoverongaps': False, 'hovertemplate': 'Predicted %{y}<br>instead of %{x}<br>on %{z} examples<extra></extra>'})
-
-        confdiag = confdiag.astype('float')
-        n_right = np.sum(confdiag)
-        confdiag[confdiag == 0] = np.nan
-        confdiag = go.Heatmap({'coloraxis': 'coloraxis2', 'x': self.data.label_encoder.vocab, 'y': self.data.label_encoder.vocab, 'z': confdiag,
-                               'hoverongaps': False, 'hovertemplate': 'Predicted %{y} correctly<br>on %{z} examples<extra></extra>'})
-
-        fig = go.Figure((confdiag, confmatrix))
-        transparent = 'rgba(0, 0, 0, 0)'
-        n_total = n_right + n_confused
-        fig.update_layout({'coloraxis1': {'colorscale': [[0, transparent], [0, 'rgba(180, 0, 0, 0.05)'], [
-                          1, f'rgba(180, 0, 0, {max(0.2, (n_confused/n_total) ** 0.5)})']], 'showscale': False}})
-        fig.update_layout({'coloraxis2': {'colorscale': [[0, transparent], [
-                          0, f'rgba(0, 180, 0, {min(0.8, (n_right/n_total) ** 2)})'], [1, 'rgba(0, 180, 0, 1)']], 'showscale': False}})
-
-        xaxis = {'title': {'text': 'y_true'}, 'showticklabels': False}
-        yaxis = {'title': {'text': 'y_pred'}, 'showticklabels': False}
-
-        fig.update_layout(title={'text': name, 'x': 0.5},
-                          paper_bgcolor=transparent, plot_bgcolor=transparent, xaxis=xaxis, yaxis=yaxis)
-
-        return wandb.data_types.Plotly(fig)
+        cm = wandb.plot.confusion_matrix(y_true=target, preds=predictions)
+        return cm
 
     @classmethod
     def add_model_specific_args(cls, parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
