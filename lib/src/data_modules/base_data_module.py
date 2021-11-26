@@ -14,7 +14,7 @@ from lib.src.common.logger import get_std_out_logger
 class BaseDataModule(LightningDataModule):
 
     # it's used for joining predicted values with original dataset records a batch inference (see output_dataset method)
-    sample_id_col = 'sample_id' #TODO - put in init function on self
+    sample_id_col = 'sample_id' #TODO - put in init function on self        
 
     def __init__(self, args: argparse.Namespace):
         super().__init__()
@@ -26,7 +26,7 @@ class BaseDataModule(LightningDataModule):
         self.label_col = self.args.hparams["label"]  # readability
         self.text_col = self.args.hparams["text"]  # readability
 
-        self._train_dataset, self._val_dataset, self._test_dataset = None, None, None
+        self._train_dataset, self._val_dataset, self._test_dataset, self._predict_dataset = None, None, None, None
         if not os.path.exists(self.args.output_dir):
             os.makedirs(self.args.output_dir)
 
@@ -40,17 +40,15 @@ class BaseDataModule(LightningDataModule):
             for k, v in wandb.config.items():
                 if k in self.args.hparams:
                     self.args.hparams[k] = v
-                    self.logger.debug(
-                        "Setting data module hyperparameter {} to sweep value {}".format(k, v))
+                    self.logger.debug("Setting data module hyperparameter {} to sweep value {}".format(k, v))
 
     def prepare_data(self):
         raise NotImplementedError("This must be implemented by child class.")
-
-    def prepare_sample(self):
-        raise NotImplementedError(
-            "Collate function must be implemented by child class.")
     
     def setup(self, stage: Optional[str] = None):
+        pass
+    
+    def teardown(self, stage: Optional[str] = None):
         pass
 
     def _verify_module(self):
@@ -134,6 +132,28 @@ class BaseDataModule(LightningDataModule):
             dataset = dataset.to_dict("records")
         assert isinstance(dataset, list) and isinstance(dataset[0], dict)
         return dataset
+    
+    def _load_text_from_text_file(self, filepath: str) -> List[dict]:
+        """[summary]
+
+        Args:
+            filepath (str): [description]
+
+        Returns:
+            List[dict]: [description]
+        """
+        prepared_inputs = []
+        with open(filepath, "r") as f:
+            for idx, line in enumerate(f):
+                line = line.rstrip()
+                prepared_input = {self.text_col: line, self.label_col: None, self.sample_id_col: idx}
+                prepared_inputs.append(prepared_input)
+        return prepared_inputs
+            
+    def _load_text_from_raw_input(self) -> List[dict]:
+        sample_text = input("Enter sample text. (Press Ctrl+C to exit)\n")
+        prepared_input = {self.text_col: sample_text, self.label_col: None, self.sample_id_col: 0}
+        return [prepared_input]
 
     def train_dataloader(self) -> DataLoader:
         """ Function that loads the train set. """
@@ -160,7 +180,27 @@ class BaseDataModule(LightningDataModule):
         """ Function that loads the test set. """
         self._test_dataset = self._verify_dataset_record_type(self._test_dataset)
         return DataLoader(
-            dataset=self._test_dataset ,
+            dataset=self._test_dataset,
+            batch_size=self.args.hparams['batch_size'],
+            collate_fn=self.prepare_sample,
+            num_workers=self.args.hparams['loader_workers'],
+        )
+    
+    def predict_batch_dataloader(self) -> DataLoader:
+        """ Function that loads batch prediction by processing lines in a text file"""
+        self._predict_dataset = self._load_text_from_text_file(self.args.evaluate_batch_file)
+        return DataLoader(
+            dataset=self._predict_dataset,
+            batch_size=self.args.hparams['batch_size'],
+            collate_fn=self.prepare_sample,
+            num_workers=self.args.hparams['loader_workers'],
+        )
+    
+    def predict_live_dataloader(self) -> DataLoader:
+        """ Function that loads the batch prediction set by processing a single piece of text input to the shell """
+        self._predict_dataset = self._load_text_from_raw_input()
+        return DataLoader(
+            dataset=self._predict_dataset,
             batch_size=self.args.hparams['batch_size'],
             collate_fn=self.prepare_sample,
             num_workers=self.args.hparams['loader_workers'],
@@ -168,8 +208,7 @@ class BaseDataModule(LightningDataModule):
 
     # TODO - probably move to csv, generalize one
     def _build_label_encoder(self):
-        """ Builds out custom label encoder to specify l
-        ogic for which outputs will be in logits layer
+        """ Builds out custom label encoder to specify logic for which outputs will be in logits layer
         """
         if not isinstance(self._train_dataset, pd.DataFrame):
             raise NotImplementedError(

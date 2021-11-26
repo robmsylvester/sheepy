@@ -22,7 +22,11 @@ def get_parser() -> argparse.ArgumentParser:
     parser.add_argument("--data_format", type=str, default="csv",
                         help="Data format of input file/s, must be either csv or json")
     parser.add_argument("--evaluate", action="store_true",
-                        help="Runs the model in evaluation mode instead of the train/val/test mode.")
+                        help="Runs the model in batch evaluation mode on a text file instead of the train/val/test mode.")
+    parser.add_argument("--evaluate_batch_file", type=str, default=None,
+                        help="Location of the text file with which to run batch evaluation.")
+    parser.add_argument("--evaluate_live", action="store_true",
+                        help="Runs the model in raw input evaluation mode from the shell instead of the train/val/test mode or batch evaluation mode")
     parser.add_argument("--tune", action="store_true",
                         help="Runs the model in tune/sweep mode as per the sweep argument of the config file.")
     parser.add_argument("--data_output", type=str, default=None,
@@ -64,8 +68,16 @@ def main():
     args.n_gpu = torch.cuda.device_count()
     args.precision = 16 if args.fp16 and args.n_gpu > 0 else 32
 
-    # Verify model output directories - #TODO - move this all to experiment class
+    #TODO - move this all to experiment class
+    # Verify model output directories
     if args.evaluate:
+        
+        if not args.evaluate_live:
+            if not args.evaluate_batch_file:
+                raise ValueError("When running in batch evaluation mode, you must provide a text file to the evaluate_batch_file argument")
+            if not os.path.exists(args.evaluate_batch_file):
+                raise ValueError("Cannot find evaluate_batch_file in file system located at {}".format(args.evaluate_batch_file))
+
         if args.experiment_name is None or args.output_key is None:
             raise ValueError(
                 "You must pass a pretrained experiment name and the output column name or dict key as output_key.")
@@ -102,7 +114,11 @@ def main():
         experiment = Experiment(args)
         if args.evaluate:
             experiment.prepare_evaluator(data_module, model)
-            experiment.predict()
+            if args.evaluate_live:
+                while True:
+                    experiment.predict_live()
+            else:
+                experiment.predict_batch()
         else:
             experiment.prepare_trainer(data_module, model)
             experiment.train()

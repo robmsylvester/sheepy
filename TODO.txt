@@ -4,7 +4,7 @@
 4. remove data loading from prepare_data function
 5. remove setup.py dependency
 6. done
-7. update the libaries for wandb and pytl
+7. done
 8. done
 9. FC classifier should take a list of sizes, not that scale parameter bs
 10. batch prediction via predict_step()
@@ -12,3 +12,8 @@
 12. done
 13. multiclass and multilabel
 14. update README
+15. prepare target keyword is basically doubled up
+16. nlp argu tokenizer shit is ugly
+17. dont call setup() test stage in predict()
+18. checkpoints[-1] on prepare_evaluator
+19. weights and biases turn off in eval mode

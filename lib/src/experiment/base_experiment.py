@@ -83,11 +83,9 @@ class Experiment():
             self.logger.info("Loading model from {}".format(
                 self.args.pretrained_dir))
         else:
-            load_from_checkpoint = False
+            load_from_checkpoint = False          
 
         self.data = data_module_cls(self.args)
-        self.data.prepare_data()
-        self.data.setup(stage="test")
 
         if load_from_checkpoint:
 
@@ -117,6 +115,8 @@ class Experiment():
             self.checkpoint_path = checkpoints[-1]
             self.model = model_cls.load_from_checkpoint(
                 self.checkpoint_path, args=model_args, data=self.data)
+            
+            self.model.live_eval_mode = self.args.evaluate_live
 
         else:
             self.model = model_cls(self.args, self.data)
@@ -128,16 +128,6 @@ class Experiment():
         self._build_callbacks()
         self._build_trainer()
         self._prepare_logger()
-
-    def evaluate_live(self):
-        """Readability-wrapper as a call to the model's evaluate_live() method if your model supports a REPL-style evaluator"""
-        self.model.evaluate_live(self.data)
-
-    def evaluate_file(self, *args, **kwargs):
-        """
-        Readability-wrapper as a call to the model's evaluate() method for a single file.
-        """
-        self.model.evaluate_file(*args, **kwargs)
 
     def _dump_args(self):
         """Helper function that will dump all arguments into a model's directory
@@ -158,18 +148,14 @@ class Experiment():
     def _prepare_logger(self):
         """Helper function that sets the verbosity of logging in weights and biases and pytorch"""
         if self.args.validation['gradient_log_steps'] is not None and self.args.validation['param_log_steps'] is not None:
-            log = "all"
             log_steps = min(
                 self.args.validation['gradient_log_steps'], self.args.validation['param_log_steps'])
-            # TODO - add logger about them being different here
         elif self.args.validation['gradient_log_steps'] is None and self.args.validation['param_log_steps'] is not None:
-            log = "parameters"
             log_steps = self.args.validation['param_log_steps']
         elif self.args.validation['gradient_log_steps'] is not None and self.args.validation['param_log_steps'] is None:
-            log = "gradients"
             log_steps = self.args.validation['gradient_log_steps']
         else:
-            log, log_steps = None, None
+            log_steps = None
         # TODO - self.log_hyperparams and self.log_metrics should be called here too eventually
         self.wandb.watch(self.model, log="all", log_freq=log_steps)
 
@@ -235,8 +221,11 @@ class Experiment():
     def test(self):
         self.trainer.test(self.model, test_dataloaders=self.data.test_dataloader())
 
-    def predict(self):
-        self.trainer.predict(self.model, self.data)
+    def predict_batch(self):
+        self.trainer.predict(self.model, dataloaders=self.data.predict_batch_dataloader())
+    
+    def predict_live(self):
+        self.trainer.predict(self.model, dataloaders=self.data.predict_live_dataloader())
 
     @classmethod
     def add_model_specific_args(cls, parser: argparse.ArgumentParser) -> argparse.ArgumentParser:

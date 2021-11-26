@@ -6,9 +6,6 @@ from pytorch_lightning import LightningDataModule
 from collections import OrderedDict
 from lib.src.metrics.classification_metrics import ClassificationMetrics
 
-# TODO - replace args with args or leave and get implicitly tracked by lightning. hmmmm
-
-
 class BaseClassifier(pl.LightningModule):
     """
     Base model with wandb, logging, data support, ignoring many model implementation details.
@@ -22,6 +19,7 @@ class BaseClassifier(pl.LightningModule):
         super().__init__()
         self.args = args
         self.data = data
+        self.live_eval_mode = False
         self._build_metrics()
         self._set_tune_params()
 
@@ -44,7 +42,7 @@ class BaseClassifier(pl.LightningModule):
         """
         self.metrics = ClassificationMetrics(
             self.data.label_encoder.vocab,
-            self.args.metrics        )
+            self.args.metrics)
 
     def _get_class_weights(self):
         """
@@ -67,17 +65,6 @@ class BaseClassifier(pl.LightningModule):
         print("\nClass weights:\n{}".format(weights))
         return torch.tensor(weights)
 
-    # def log_metrics(self, metrics: dict):
-    #     """Helper function to track metrics by wandb"""
-    #     if not isinstance(self.logger, WandbLogger):
-    #         raise ValueError("self.logger is not a wandb logger")
-    #     self.logger.log_metrics(metrics)
-
-    # def log_hyperparams(self):
-    #     """Helper function to track hyperparameters by wandb"""
-    #     if not isinstance(self.logger, WandbLogger):
-    #         return
-
     def _build_loss(self):
         """ Initializes the loss function """
         raise NotImplementedError(
@@ -99,14 +86,6 @@ class BaseClassifier(pl.LightningModule):
     #         dict: Dictionary with the input text and the predicted label.
     #     """
     #     pass
-
-    def evaluate_live(self):
-        """
-        Expose a method that can call predictions live on sample data, text through a terminal for example.
-        Essentially this is a barebones data prepare + predict REPL
-        """
-        raise NotImplementedError(
-            "Your model does not implement an evaluate_live() method. See base_transformer_classifier.evaluate_live() for an example")
 
     def forward(self, tokens, lengths) -> dict:
         """ Usual pytorch forward function.
@@ -183,7 +162,6 @@ class BaseClassifier(pl.LightningModule):
         """
         cm = self._create_confusion_matrix(outputs, name="Train Epoch Confusion Matrix")
         self.logger.experiment.log({"train/epoch_confusion_matrix": cm})
-        #self.log("train/epoch_confusion_matrix", cm, on_step=False, on_epoch=True)
         return None
 
     # TODO - this implementation is too specific for the base class. Move to children
@@ -224,7 +202,7 @@ class BaseClassifier(pl.LightningModule):
             - Dictionary with metrics to be added to the lightning logger.  
         """
         cm = self._create_confusion_matrix(outputs, name="Validation Epoch Confusion Matrix")
-        self.logger.experiment.log({"val/epoch_confusion_matrix": cm}) #, on_step=False, on_epoch=True)
+        self.logger.experiment.log({"val/epoch_confusion_matrix": cm})
         return None
     
     def test_step(self, batch: tuple, batch_idx: int) -> OrderedDict:
@@ -285,7 +263,36 @@ class BaseClassifier(pl.LightningModule):
         """
         inputs, _, ids = batch
         model_out = self.forward(**inputs)
-        return {**model_out, **ids}
+        logits = model_out["logits"]
+
+        output = OrderedDict({
+            "logits": logits,
+            "ids": ids,
+        })
+
+        return output
+    
+    #NOTE - PyTorch Lightning 1.5.1 still uses this on_ prefix for predict_step_end, but this may change soon. see here: https://github.com/PyTorchLightning/pytorch-lightning/issues/9380
+    def on_predict_step_end(self, outputs: list) -> list:
+        return outputs
+    
+    #NOTE - PyTorch Lightning 1.5.1 still uses this on_ prefix for predict_epoch_end, but this may change soon. see here: https://github.com/PyTorchLightning/pytorch-lightning/issues/9380
+    def on_predict_epoch_end(self, outputs: list) -> dict:
+        if self.live_eval_mode:
+            prediction_logits = outputs[0][0]["logits"].cpu().squeeze()
+            prediction_softmax = torch.nn.Softmax(dim=0)(prediction_logits)
+            print(prediction_logits)
+            output_str = "\nPrediction:\n"
+            for label_idx, label in enumerate(self.data.label_encoder.vocab):
+                output_str += "\t{}:{}\n".format(label, prediction_softmax[label_idx])
+            print(output_str)
+        else:
+            for output in outputs[0]:
+                prediction_logits = output["logits"].cpu().squeeze()
+                prediction_softmax = torch.nn.Softmax(dim=1)(prediction_logits)
+                print(prediction_softmax)
+            
+        return None
     
     def _shared_evaluation_step(self, batch: tuple, batch_idx: int, stage: str) -> OrderedDict:
         """[summary]

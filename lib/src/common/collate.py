@@ -4,6 +4,7 @@ from lib.src.common.tokenizer import Tokenizer
 from torchnlp.utils import collate_tensors
 from torch import Tensor, FloatTensor, transpose
 from typing import List, Union
+import numpy as np
 import random
 
 # A batch sample to input the model.
