@@ -7,13 +7,15 @@
 7. done
 8. done
 9. FC classifier should take a list of sizes, not that scale parameter bs
-10. batch prediction via predict_step()
+10. done
 11. doc strings standardized
 12. done
-13. multiclass and multilabel
+13. multiclass and multilabel. base as a special case of multilabel?
 14. update README
 15. prepare target keyword is basically doubled up
-16. nlp argu tokenizer shit is ugly
+16. nlp argument tokenizer shit is ugly
 17. dont call setup() test stage in predict()
-18. checkpoints[-1] on prepare_evaluator
+18. done
 19. weights and biases turn off in eval mode
+20. dont need output_key so much
+21. update config guide

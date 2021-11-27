@@ -2,6 +2,8 @@ import torch
 import argparse
 import pytorch_lightning as pl
 import wandb
+import pandas as pd
+from typing import List
 from pytorch_lightning import LightningDataModule
 from collections import OrderedDict
 from lib.src.metrics.classification_metrics import ClassificationMetrics
@@ -150,7 +152,7 @@ class BaseClassifier(pl.LightningModule):
         self.log_dict(output_metrics, on_step=True, on_epoch=True)
         return outputs
 
-    def training_epoch_end(self, outputs: list) -> dict:
+    def training_epoch_end(self, outputs: List) -> dict:
         """Runs pytorch lightning validation_epoch_end_function. For more details, see
         _run_epoch_end_metrics
 
@@ -191,7 +193,7 @@ class BaseClassifier(pl.LightningModule):
         self.log_dict(output_metrics, on_step=False, on_epoch=True)
         return outputs
     
-    def validation_epoch_end(self, outputs: list) -> dict:
+    def validation_epoch_end(self, outputs: List) -> dict:
         """Runs pytorch lightning validation_epoch_end_function. For more details, see
         _run_epoch_end_metrics
 
@@ -217,7 +219,7 @@ class BaseClassifier(pl.LightningModule):
         """
         return self._shared_evaluation_step(batch, batch_idx, stage="test")
 
-    def test_step_end(self, outputs: list) -> dict:
+    def test_step_end(self, outputs: List) -> dict:
         """[summary]
 
         Args:
@@ -227,27 +229,14 @@ class BaseClassifier(pl.LightningModule):
             dict: [description]
         """
 
-        # df = pd.DataFrame(
-        #     list(map(int, output_results['sample_id_keys'].tolist())),
-        #     columns=[self.data.sample_id_col]
-        # )
-
-        # softmax_p = F.softmax(output_results['logits'], dim=1).tolist()
-        # df[self.data.args.output_key] = softmax_p
-
-        # return df
         output_metrics = self.metrics.compute_metrics(outputs['logits'], outputs['target'], stage='test')
         self.log_dict(output_metrics, on_step=False, on_epoch=True)
         return outputs
 
-    def test_epoch_end(self, outputs: list) -> dict:
+    def test_epoch_end(self, outputs: List[dict]) -> dict:
         """Triggers self.data to write predictions to the disk"""
-        # df_collected = pd.concat(outputs)
-        # self.data.write_predictions_to_disk(df_collected)
-        # return None
         cm = self._create_confusion_matrix(outputs, name="Test Epoch Confusion Matrix")
         self.logger.experiment.log({"test/epoch_confusion_matrix": cm})
-        #self.log("test/epoch_confusion_matrix", cm, on_step=False, on_epoch=True)
         return None
     
     def predict_step(self, batch: tuple, batch_idx: int, dataloader_idx: int=0):
@@ -265,9 +254,11 @@ class BaseClassifier(pl.LightningModule):
         model_out = self.forward(**inputs)
         logits = model_out["logits"]
 
+        sample_ids = ids['sample_id_keys']
+
         output = OrderedDict({
             "logits": logits,
-            "ids": ids,
+            "sample_id_keys": sample_ids,
         })
 
         return output
@@ -277,21 +268,16 @@ class BaseClassifier(pl.LightningModule):
         return outputs
     
     #NOTE - PyTorch Lightning 1.5.1 still uses this on_ prefix for predict_epoch_end, but this may change soon. see here: https://github.com/PyTorchLightning/pytorch-lightning/issues/9380
-    def on_predict_epoch_end(self, outputs: list) -> dict:
+    def on_predict_epoch_end(self, outputs: List) -> dict:
         if self.live_eval_mode:
             prediction_logits = outputs[0][0]["logits"].cpu().squeeze()
             prediction_softmax = torch.nn.Softmax(dim=0)(prediction_logits)
-            print(prediction_logits)
             output_str = "\nPrediction:\n"
             for label_idx, label in enumerate(self.data.label_encoder.vocab):
                 output_str += "\t{}:{}\n".format(label, prediction_softmax[label_idx])
-            print(output_str)
+            self.logger.info(output_str)
         else:
-            for output in outputs[0]:
-                prediction_logits = output["logits"].cpu().squeeze()
-                prediction_softmax = torch.nn.Softmax(dim=1)(prediction_logits)
-                print(prediction_softmax)
-            
+            self.data._write_predictions(outputs[0])
         return None
     
     def _shared_evaluation_step(self, batch: tuple, batch_idx: int, stage: str) -> OrderedDict:

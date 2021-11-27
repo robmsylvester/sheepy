@@ -2,6 +2,7 @@ import argparse
 import pandas as pd
 import os
 import wandb
+import torch
 from typing import Union, List, Dict, Optional
 from pytorch_lightning import LightningDataModule
 from torchnlp.encoders import LabelEncoder
@@ -102,21 +103,31 @@ class BaseDataModule(LightningDataModule):
                                             prepare_target=self.prepare_target,
                                             prepare_sample_id=self.evaluate)
 
-    def write_predictions_to_disk(self, predictions_df: pd.DataFrame) -> None:
+    def _write_predictions(self, outputs: List[dict]) -> None:
         """
-        Joins predictions df to the self._test_dataset on and sample_id_col
-        and writes the result to the output dir
-        :param predictions_df: pandas dataframe with predicted values
-        :return: none
+
         """
-        df = self._test_dataset.set_index(self.sample_id_col).join(
-            predictions_df.set_index(self.sample_id_col))
+        all_columns = self.label_encoder.vocab
+        all_columns.append(self.sample_id_col)
+        all_batch_predictions_df = pd.DataFrame(columns=all_columns)
 
-        self._write_predictions_to_disk(df)
-
-    def _write_predictions_to_disk(self, predictions_df: pd.DataFrame) -> None:
-        raise NotImplementedError(
-            "_write_predictions_to_disk function must be implemented by child class.")
+        for output in outputs:
+            prediction_logits = output["logits"].cpu().squeeze()
+            sample_ids = pd.Series(output["sample_id_keys"].cpu().squeeze()).astype("int")
+            prediction_softmax = torch.nn.Softmax(dim=1)(prediction_logits)
+            batch_prediction_df = pd.DataFrame(prediction_softmax).astype("float")
+            batch_prediction_df = batch_prediction_df.rename(columns={label_idx: label for label_idx, label in enumerate(self.label_encoder.vocab)})
+            batch_prediction_df[self.sample_id_col] = sample_ids
+            all_batch_predictions_df = all_batch_predictions_df.append(batch_prediction_df, ignore_index=True)
+        
+        all_batch_predictions_df = all_batch_predictions_df.reset_index(drop=True)
+        cols = all_batch_predictions_df.columns.tolist()
+        cols = cols[-1:] + cols[:-1]
+        all_batch_predictions_df = all_batch_predictions_df[cols]
+        out_csv_path = self.args.evaluate_batch_file.split(".")[0] + "_pred.csv"
+        
+        self.logger.info("Writing CSV file with {} predictions to {}".format(all_batch_predictions_df.shape[0], out_csv_path))
+        all_batch_predictions_df.to_csv(out_csv_path)
     
     def _verify_dataset_record_type(self, dataset: Union[pd.DataFrame, List[Dict]]) -> List[Dict]:
         """Verifies that dataset returns records datatype of type list[dict], converting from

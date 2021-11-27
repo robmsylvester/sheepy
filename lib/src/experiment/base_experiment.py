@@ -100,21 +100,19 @@ class Experiment():
             model_data.load_data_module()
 
             if hasattr(self.data, 'label_encoder'):
-                # text2text models do not have label_encoder and train_class_sizes
                 self.data.label_encoder = model_data.label_encoder
                 self.data.train_class_sizes = model_data.train_class_sizes
 
             # Then the model from the checkpoint. Note that in pytl v1 the 'checkpoints' subdirectory was removed
             checkpoints = [os.path.join(self.args.pretrained_dir, f) for f in os.listdir(
                 self.args.pretrained_dir) if f.endswith(".ckpt")]
-            if not len(checkpoints):
-                raise ValueError("Unable to locate at least one model checkpoint file in directory {}".format(
-                    self.args.pretrained_dir))
+            if len(checkpoints) != 1:
+                raise ValueError("Your model directory {} should have exactly one .ckpt file in it. Instead, there are {}".format(
+                    self.args.pretrained_dir, len(checkpoints)))
 
             # TODO - double check this -1 behavior on overfit model
-            self.checkpoint_path = checkpoints[-1]
-            self.model = model_cls.load_from_checkpoint(
-                self.checkpoint_path, args=model_args, data=self.data)
+            self.checkpoint_path = checkpoints[0]
+            self.model = model_cls.load_from_checkpoint(self.checkpoint_path, args=model_args, data=self.data)
             
             self.model.live_eval_mode = self.args.evaluate_live
 
@@ -148,8 +146,7 @@ class Experiment():
     def _prepare_logger(self):
         """Helper function that sets the verbosity of logging in weights and biases and pytorch"""
         if self.args.validation['gradient_log_steps'] is not None and self.args.validation['param_log_steps'] is not None:
-            log_steps = min(
-                self.args.validation['gradient_log_steps'], self.args.validation['param_log_steps'])
+            log_steps = min(self.args.validation['gradient_log_steps'], self.args.validation['param_log_steps'])
         elif self.args.validation['gradient_log_steps'] is None and self.args.validation['param_log_steps'] is not None:
             log_steps = self.args.validation['param_log_steps']
         elif self.args.validation['gradient_log_steps'] is not None and self.args.validation['param_log_steps'] is None:
@@ -167,11 +164,8 @@ class Experiment():
         If you want to add additional callbacks, search as self.grad_accum_callback, or self.lr_monitor_callback, then add them
         to self.custom_callbacks
         """
-        self.checkpoint_callback = self._build_checkpoint_callback(
-        ) if self.args.validation['save_top_k'] >= 1 else False
-
-        self.early_stop_callback = self._build_early_stop_callback(
-        ) if self.args.hparams['early_stop_enabled'] else False
+        self.checkpoint_callback = self._build_checkpoint_callback()
+        self.early_stop_callback = self._build_early_stop_callback() if self.args.hparams['early_stop_enabled'] else False
 
         self.lr_monitor_callback = LearningRateMonitor()
         self.custom_callbacks = [self.checkpoint_callback]
@@ -191,7 +185,7 @@ class Experiment():
         """Helper functioon to create the model checkpoints, and point PyTL where to overwrite them during training"""
         checkpoint_callback = ModelCheckpoint(
             dirpath=self.args.output_dir,
-            save_top_k=self.args.validation['save_top_k'],
+            save_top_k=1,
             verbose=True,
             monitor=self.args.validation['metric'],
             mode=self.args.validation['metric_goal'],

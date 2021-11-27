@@ -41,7 +41,6 @@
         "metric_goal": "min or max, depending on the metric",
         "check_val_every_n_epoch": "int, how many epochs to run before running validation set",
         "val_check_interval": "float, if running validation more than once per epoch, pass a float here such that it will run 1/x times per epoch",
-        "save_top_k": "int, number of best models to save",
         "gradient_log_steps": "int, how many steps to run before logging accumulated gradient steps. 100 is good",
         "param_log_steps": "int, unused. null is good here now. see pytorch docs"
     },

@@ -47,7 +47,6 @@
     "validation": {
         "check_val_every_n_epoch": 1,
         "val_check_interval": 0.5,
-        "save_top_k": 1,
         "gradient_log_steps": 100,
         "param_log_steps": null
     },
