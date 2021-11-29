@@ -1,12 +1,9 @@
 import argparse
 import pandas as pd
 import os
-import requests
-import zipfile
-from shutil import rmtree
 from lib.src.data_modules.base_csv_data_module import BaseCSVDataModule
 from lib.src.common.collate import single_text_collate_function, CollatedSample
-from lib.src.common.df_ops import read_csv_text_classifier, write_csv_dataset
+from lib.src.common.df_ops import read_csv_text_classifier
 from torchnlp.encoders import LabelEncoder
 
 class SemEvalSentimentDataModule(BaseCSVDataModule):
@@ -65,8 +62,7 @@ class SemEvalSentimentDataModule(BaseCSVDataModule):
                                             self.sample_id_col,
                                             self.nlp['tokenizer'],
                                             self.label_encoder,
-                                            prepare_target=self.prepare_target,
-                                            prepare_sample_id=self.evaluate)
+                                            evaluate=self.evaluate)
 
     def _build_label_encoder(self):
         """ Builds out custom label encoder to specify logic for which outputs will be in logits layer 

@@ -31,7 +31,6 @@ class BaseDataModule(LightningDataModule):
         if not os.path.exists(self.args.output_dir):
             os.makedirs(self.args.output_dir)
 
-        self.prepare_target = True if not self.evaluate else False
         self.nlp = {'tokenizer': Tokenizer(self.args.hparams['encoder_model'])}
 
     def _set_tune_params(self):
@@ -100,8 +99,7 @@ class BaseDataModule(LightningDataModule):
                                             self.sample_id_col,
                                             self.nlp['tokenizer'],
                                             self.label_encoder,
-                                            prepare_target=self.prepare_target,
-                                            prepare_sample_id=self.evaluate)
+                                            evaluate=self.evaluate)
 
     def _write_predictions(self, outputs: List[dict]) -> None:
         """

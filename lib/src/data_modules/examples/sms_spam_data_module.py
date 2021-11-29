@@ -102,8 +102,7 @@ class SmsSpamDataModule(BaseCSVDataModule):
                                             self.sample_id_col,
                                             self.nlp['tokenizer'],
                                             self.label_encoder,
-                                            prepare_target=self.prepare_target,
-                                            prepare_sample_id=self.evaluate)
+                                            evaluate=self.evaluate)
 
     def _build_label_encoder(self):
         """ Builds out custom label encoder to specify logic for which outputs will be in logits layer """

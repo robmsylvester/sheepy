@@ -75,8 +75,7 @@ class MultiLabelBaseDataModule(BaseDataModule):
                                             self.label_col,
                                             self.sample_id_col,
                                             self.nlp['tokenizer'],
-                                            prepare_target=self.prepare_target,
-                                            prepare_sample_id=self.evaluate)
+                                            evaluate=self.evaluate)
 
     @classmethod
     def add_model_specific_args(cls, parser: argparse.ArgumentParser) -> argparse.ArgumentParser:

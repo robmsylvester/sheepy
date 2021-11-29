@@ -193,13 +193,12 @@ def test_single_label_single_text_collate(batch_sample, tokenizer, label_encoder
         dm.sample_id_col,
         tokenizer,
         label_encoder=label_encoder,
-        prepare_target=True,
-        prepare_sample_id=True
+        evaluate=False
     )
 
     tensors = collect_tensors(collated)
 
-    assert (len(tensors) == 4) #inputs tokens, input lengths, targets, ids
+    assert (len(tensors) == 3) #inputs tokens, input lengths, targets, no ids
     assert (all(elem.shape[0] == len(batch_sample) for elem in iter(tensors)))
 
     #Test tokens match
@@ -212,9 +211,6 @@ def test_single_label_single_text_collate(batch_sample, tokenizer, label_encoder
     #Test labels match
     assert torch.all(torch.eq(tensors[2], torch.Tensor([0,1])))
 
-    #Test sample ids match
-    assert torch.all(torch.eq(tensors[3], torch.Tensor([1,2])))
-
 
 def test_multi_label_single_text_collate(multilabel_batch_sample, tokenizer):
     collated = single_text_collate_function(
@@ -224,13 +220,12 @@ def test_multi_label_single_text_collate(multilabel_batch_sample, tokenizer):
         dm.sample_id_col,
         tokenizer,
         label_encoder=None,
-        prepare_target=True,
-        prepare_sample_id=True
+        evaluate=False
     )
 
     tensors = collect_tensors(collated)
 
-    assert (len(tensors) == 4) #inputs tokens, input lengths, targets, ids
+    assert (len(tensors) == 3) #inputs tokens, input lengths, targets, no ids
     assert (all(elem.shape[0] == len(multilabel_batch_sample) for elem in iter(tensors)))
 
     #Test tokens match
@@ -243,9 +238,6 @@ def test_multi_label_single_text_collate(multilabel_batch_sample, tokenizer):
     #Test labels match
     assert torch.all(torch.eq(tensors[2][0], torch.Tensor([0,0,0,0])))
     assert torch.all(torch.eq(tensors[2][1], torch.Tensor([0,1,0,1])))
-
-    #Test sample ids match
-    assert torch.all(torch.eq(tensors[3], torch.Tensor([1,2])))
 
 def test_concatenate_text_samples(windowed_batch_sample):
     collated = collate_tensors(windowed_batch_sample)
@@ -273,13 +265,12 @@ def test_single_label_zero_window_text_collate(windowed_batch_sample, tokenizer,
         prev_sample_size=0,
         next_sample_size=0,
         concatenate=False,
-        prepare_target=True,
-        prepare_sample_id=True
+        evaluate=False
     )
 
     tensors = collect_tensors(collated)
 
-    assert (len(tensors) == 4) #inputs tokens, input lengths, targets, ids
+    assert (len(tensors) == 3) #inputs tokens, input lengths, targets, no ids
     assert (all(elem.shape[0] == len(windowed_batch_sample) for elem in iter(tensors)))
 
     #Test tokens match
@@ -292,15 +283,10 @@ def test_single_label_zero_window_text_collate(windowed_batch_sample, tokenizer,
     #Test labels match
     assert torch.all(torch.eq(tensors[2], torch.Tensor([0,1])))
 
-    #Test sample ids match
-    assert torch.all(torch.eq(tensors[3], torch.Tensor([1,2])))
-
-
     #why 20? 
     # 1 length tensor for each text column (9)
     # 1 token tensor for each text column (9)
     # 1 label tensor
-    # 1 target id tensor
 
 def test_single_label_concatenated_text_collate(windowed_batch_sample, tokenizer, label_encoder):
     collated = windowed_text_collate_function(
@@ -314,8 +300,7 @@ def test_single_label_concatenated_text_collate(windowed_batch_sample, tokenizer
         prev_sample_size=3,
         next_sample_size=3,
         concatenate=True,
-        prepare_target=True,
-        prepare_sample_id=True
+        evaluate=False
     )
 
     keys = collect_keys(collated)
@@ -331,12 +316,11 @@ def test_single_label_concatenated_text_collate(windowed_batch_sample, tokenizer
         "second. third! fourth. fifth. sixth. seventh. eighth."
     ])
 
-    #why 6? 
+    #why 5? 
     # 1 length tensor for each text column (2)
     # 1 token tensor for each text column (2)
     # 1 label tensor
-    # 1 target id tensor
-    assert (len(tensors) == 6)
+    assert (len(tensors) == 5)
     assert (all(elem.shape[0] == len(windowed_batch_sample) for elem in iter(tensors)))
 
     #Test tokens match
@@ -352,8 +336,6 @@ def test_single_label_concatenated_text_collate(windowed_batch_sample, tokenizer
     #Test labels match
     assert torch.all(torch.eq(tensors[4], torch.Tensor([0,1])))
 
-    #Test sample ids match
-    assert torch.all(torch.eq(tensors[5], torch.Tensor([1,2])))
 
 def test_single_label_no_concatenations_text_collate(windowed_batch_sample, tokenizer, label_encoder):
     collated = windowed_text_collate_function(
@@ -367,8 +349,7 @@ def test_single_label_no_concatenations_text_collate(windowed_batch_sample, toke
         prev_sample_size=3,
         next_sample_size=3,
         concatenate=False,
-        prepare_target=True,
-        prepare_sample_id=True
+        evaluate=False
     )
 
     keys = collect_keys(collated)
@@ -377,12 +358,11 @@ def test_single_label_no_concatenations_text_collate(windowed_batch_sample, toke
     assert ('tokens' in keys)
     assert ('lengths' in keys)
 
-    #why 16? 
+    #why 15? 
     # 1 length tensor for each text column (7)
     # 1 token tensor for each text column (7)
     # 1 label tensor
-    # 1 target id tensor
-    assert (len(tensors) == 16)
+    assert (len(tensors) == 15)
     assert (all(elem.shape[0] == len(windowed_batch_sample) for elem in iter(tensors)))
 
     #Test tokens match
@@ -413,9 +393,6 @@ def test_single_label_no_concatenations_text_collate(windowed_batch_sample, toke
     #Test labels match
     assert torch.all(torch.eq(tensors[14], torch.Tensor([0,1])))
 
-    #Test sample ids match
-    assert torch.all(torch.eq(tensors[15], torch.Tensor([1,2])))
-
 def test_multi_label_no_concatenations_text_collate(multilabel_windowed_batch_sample, tokenizer):
     collated = windowed_text_collate_function(
         multilabel_windowed_batch_sample,
@@ -428,8 +405,7 @@ def test_multi_label_no_concatenations_text_collate(multilabel_windowed_batch_sa
         prev_sample_size=3,
         next_sample_size=3,
         concatenate=False,
-        prepare_target=True,
-        prepare_sample_id=True
+        evaluate=False
     )
 
     keys = collect_keys(collated)
@@ -438,12 +414,11 @@ def test_multi_label_no_concatenations_text_collate(multilabel_windowed_batch_sa
     assert ('tokens' in keys)
     assert ('lengths' in keys)
 
-    #why 16? 
+    #why 15? 
     # 1 length tensor for each text column (7)
     # 1 token tensor for each text column (7)
     # 1 label tensor
-    # 1 target id tensor
-    assert (len(tensors) == 16)
+    assert (len(tensors) == 15)
     assert (all(elem.shape[0] == len(multilabel_windowed_batch_sample) for elem in iter(tensors)))
 
     #Test tokens match
@@ -474,9 +449,6 @@ def test_multi_label_no_concatenations_text_collate(multilabel_windowed_batch_sa
     #Test labels match
     assert torch.all(torch.eq(tensors[14][0], torch.Tensor([0,0,0,0])))
     assert torch.all(torch.eq(tensors[14][1], torch.Tensor([0,1,0,1])))
-
-    #Test sample ids match
-    assert torch.all(torch.eq(tensors[15], torch.Tensor([1,2])))
 
 def test_sampled_window_text_collate(sample_windowed_batch_sample, tokenizer, label_encoder):
 
@@ -515,8 +487,7 @@ def test_sampled_window_text_collate(sample_windowed_batch_sample, tokenizer, la
             prev_sample_size=1,
             next_sample_size=1,
             concatenate=False,
-            prepare_target=True,
-            prepare_sample_id=True
+            evaluate=False
         )
 
         tensors = collect_tensors(collated)
@@ -545,8 +516,7 @@ def test_evaluation_sampled_window_text_collate(sample_windowed_batch_sample, to
             prev_sample_size=2,
             next_sample_size=2,
             concatenate=False,
-            prepare_target=False,
-            prepare_sample_id=True
+            evaluate=True
         )
 
         tensors = collect_tensors(collated)
@@ -601,8 +571,7 @@ def test_evaluation_concatenated_sampled_window_text_collate(sample_windowed_bat
             prev_sample_size=2,
             next_sample_size=2,
             concatenate=True,
-            prepare_target=False,
-            prepare_sample_id=True
+            evaluate=True
         )
 
         tensors = collect_tensors(collated)
