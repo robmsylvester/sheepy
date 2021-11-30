@@ -45,10 +45,9 @@
         "n_prev_text_samples_sample_size": 4,
         "n_next_text_samples_sample_size": 4,
         "batch_size": 16,
-        "num_dense_layers": 3,
-        "dense_layer_scale_factor": 0.75,
+        "hidden_layer_sizes": [512, 256, 64],
         "save_epoch_count": 4,
-        "num_epochs": 3,
+        "num_epochs": 2,
         "num_epochs_decay": 100,
         "accumulate_grad_batches": 1,
         "gradient_clip_val": 1,
@@ -84,8 +83,9 @@
             },
             "num_dense_layers": {
                 "values": [
-                    3,
-                    4
+                    [512, 256, 64],
+                    [256, 64],
+                    [512, 256, 128, 64]
                 ]
             }
         }

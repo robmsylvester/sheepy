@@ -8,7 +8,6 @@ from tqdm import tqdm
 from pytorch_lightning import LightningDataModule
 from torch import nn, optim
 from argparse import Namespace
-from lib.src.common.collate import round_size
 from torch.nn import functional as F
 from torchnlp.utils import lengths_to_mask
 from lib.src.common.tokenizer import mask_fill
@@ -45,20 +44,23 @@ class TransformerClassifier(BaseClassifier):
         self.text_representation = TextRepresentation(self.args.hparams['encoder_model'])
 
         layer_config = []
+
+        #Build a list of hidden layer sizes starting with output size of the transformers
         input_size = output_size = self.text_representation.encoder_features
-        for layer_idx in range(self.args.hparams['num_dense_layers']):
-            output_size = int(
-                output_size * self.args.hparams['dense_layer_scale_factor'])
-            output_size = round_size(output_size)
+        for layer_idx, layer_size in enumerate(self.args.hparams['hidden_layer_sizes']):
             layer_config.append({
                 "input_size": input_size,
-                'output_size': output_size,
+                "output_size": layer_size,
                 "dropout_p": self.args.hparams['dropout_p']
             })
-            input_size = output_size
-
-        layer_config[-1]['output_size'] = self.args.hparams["num_labels"]
-        layer_config[-1]['dropout_p'] = 0
+            input_size = layer_size
+        
+        #Logit layer handled separately
+        layer_config.append({
+            "input_size": input_size,
+            "output_size": self.args.hparams["num_labels"],
+            "dropout_p": 0
+        })
 
         self.classification_head = FullyConnectedClassifier(layer_config)
 

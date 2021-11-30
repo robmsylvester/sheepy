@@ -6,16 +6,17 @@
 6. done
 7. done
 8. done
-9. FC classifier should take a list of sizes, not that scale parameter bs
+9. done
 10. done
 11. doc strings standardized
 12. done
 13. multiclass and multilabel. base as a special case of multilabel?
 14. update README
-15. prepare target keyword is basically doubled up
+15. done
 16. nlp argument tokenizer shit is ugly
 17. dont call setup() test stage in predict()
 18. done
 19. weights and biases turn off in eval mode
 20. dont need output_key so much
 21. update config guide
+22. evaluate_live and evaluate_file are repetitive in base_transformer_classifier. consolidate with base_classifier.

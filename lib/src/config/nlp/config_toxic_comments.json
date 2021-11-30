@@ -28,8 +28,7 @@
         "context_labels": "remove",
         "rich_labels": [],
         "batch_size": 32,
-        "num_dense_layers": 3,
-        "dense_layer_scale_factor": 0.8,
+        "hidden_layer_sizes": [512, 256, 64],
         "save_epoch_count": 4,
         "num_epochs": 3,
         "num_epochs_decay": 100,
@@ -59,9 +58,9 @@
         "parameters": {
             "num_dense_layers": {
                 "values": [
-                    2,
-                    4,
-                    6
+                    [512, 256, 64],
+                    [256, 64],
+                    [512, 256, 128, 64]
                 ]
             }
         }
