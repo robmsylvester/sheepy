@@ -3,7 +3,7 @@ from typing import Dict
 from argparse import Namespace
 from torchnlp.utils import lengths_to_mask
 from pytorch_lightning import LightningDataModule
-from lib.src.common.tokenizer import mask_fill
+from lib.src.nlp.tokenizer import mask_fill
 from lib.src.common.collate import round_size
 from lib.src.models.base_transformer_classifier import TransformerClassifier
 from lib.src.models.fully_connected_classifier import FullyConnectedClassifier
@@ -100,7 +100,7 @@ class AugmentedTransformerClassifier(TransformerClassifier):
 
             # Average Pooling
             word_embeddings = mask_fill(
-                0.0, t, word_embeddings, self.data.nlp['tokenizer'].pad_index
+                0.0, t, word_embeddings, self.data.tokenizer.pad_index
             )
             text_embedding = torch.sum(word_embeddings, 1)
             sum_mask = mask.unsqueeze(-1).expand(word_embeddings.size()

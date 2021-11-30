@@ -4,7 +4,6 @@
         "description": "Example on Binary Classification using SMS Spam Dataset",
         "dataset": "sms_spam",
         "version": 0,
-        "nlp": true,
         "data_module": "sms_spam_data_module",
         "model": "transformer_classifier",
         "restore_from_checkpoint": false

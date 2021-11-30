@@ -7,7 +7,7 @@ from typing import Union, List, Dict, Optional
 from pytorch_lightning import LightningDataModule
 from torchnlp.encoders import LabelEncoder
 from torch.utils.data import DataLoader, RandomSampler
-from lib.src.common.tokenizer import Tokenizer
+from lib.src.nlp.tokenizer import Tokenizer
 from lib.src.common.collate import single_text_collate_function, CollatedSample
 from lib.src.common.logger import get_std_out_logger
 
@@ -31,7 +31,7 @@ class BaseDataModule(LightningDataModule):
         if not os.path.exists(self.args.output_dir):
             os.makedirs(self.args.output_dir)
 
-        self.nlp = {'tokenizer': Tokenizer(self.args.hparams['encoder_model'])}
+        self.tokenizer = Tokenizer(self.args.hparams['encoder_model'])
 
     def _set_tune_params(self):
         # TODO - we may want to support iterating through other config than hparams, such as the encoder_model
@@ -66,11 +66,6 @@ class BaseDataModule(LightningDataModule):
         # this class has nothing to pickle
         pass
 
-    def nlp(self):
-        """Initializes nlp tools on the class"""
-        # TODO - move this to arg on automodel
-        self.nlp = {'tokenizer': Tokenizer("bert-base-uncased")}
-
     def prepare_sample(self, sample: list) -> CollatedSample:
         """
         Function that prepares a sample to input the model.
@@ -85,9 +80,6 @@ class BaseDataModule(LightningDataModule):
                 the text inputs are included (context windows, meeting name, etc.)
             - dictionary with the expected target labels.
         """
-        if not hasattr(self, "nlp"):
-            raise ValueError(
-                "Missing attribute nlp on data module object. It is likely the nlp() method has not been called.")
         if self.text_col is None:
             raise NotImplementedError(
                 "To use the default collate function you need a text column.\nAlternatively, write one for the x_cols to prepare your data")
@@ -97,7 +89,7 @@ class BaseDataModule(LightningDataModule):
                                             self.text_col,
                                             self.label_col,
                                             self.sample_id_col,
-                                            self.nlp['tokenizer'],
+                                            self.tokenizer,
                                             self.label_encoder,
                                             evaluate=self.evaluate)
 

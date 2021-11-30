@@ -4,7 +4,6 @@
         "description": "Example on Multiclass Classification using SemEval Dataset",
         "dataset": "semeval",
         "version": 0,
-        "nlp": true,
         "data_module": "semeval_data_module",
         "model": "transformer_classifier",
         "restore_from_checkpoint": false

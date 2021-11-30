@@ -10,7 +10,7 @@ from torch import nn, optim
 from argparse import Namespace
 from torch.nn import functional as F
 from torchnlp.utils import lengths_to_mask
-from lib.src.common.tokenizer import mask_fill
+from lib.src.nlp.tokenizer import mask_fill
 from lib.src.models.base_classifier import BaseClassifier
 from lib.src.models.fully_connected_classifier import FullyConnectedClassifier
 from lib.src.nlp.text_representation import TextRepresentation
@@ -177,7 +177,7 @@ class TransformerClassifier(BaseClassifier):
 
         # Average Pooling
         word_embeddings = mask_fill(
-            0.0, tokens, word_embeddings, self.data.nlp['tokenizer'].pad_index
+            0.0, tokens, word_embeddings, self.data.tokenizer.pad_index
         )
         sentemb = torch.sum(word_embeddings, 1)
         sum_mask = mask.unsqueeze(-1).expand(word_embeddings.size()

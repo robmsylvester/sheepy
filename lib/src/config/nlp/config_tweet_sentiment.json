@@ -4,7 +4,6 @@
         "description": "Binary, Large Dataset",
         "dataset": "tweet_sentiment",
         "version": 0,
-        "nlp": true,
         "data_module": "tweet_sentiment_data_module",
         "model": "transformer_classifier",
         "restore_from_checkpoint": false

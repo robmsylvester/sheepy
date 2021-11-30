@@ -1,6 +1,7 @@
 import torch
 from transformers import AutoTokenizer
 from torchnlp.encoders.text.text_encoder import TextEncoder
+from typing import Tuple
 
 
 class Tokenizer(TextEncoder):
@@ -11,7 +12,7 @@ class Tokenizer(TextEncoder):
     vocabulary representations. Here we add a tokenizer on top of that.
     """
 
-    def __init__(self, pretrained_model) -> None:
+    def __init__(self, pretrained_model: str) -> None:
         self.enforce_reversible = False
         self.tokenizer = AutoTokenizer.from_pretrained(pretrained_model)
         self.itos = self.tokenizer.convert_ids_to_tokens
@@ -63,7 +64,7 @@ class Tokenizer(TextEncoder):
         sequence = TextEncoder.encode(self, sequence)
         return self.tokenizer(sequence, return_tensors="pt")["input_ids"][0]
 
-    def batch_encode(self, sentences: list) -> (torch.Tensor, torch.Tensor):
+    def batch_encode(self, sentences: list) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Arguments:
             :param iterator (iterator): Batch of text to encode.

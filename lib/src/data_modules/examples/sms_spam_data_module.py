@@ -93,14 +93,11 @@ class SmsSpamDataModule(BaseCSVDataModule):
             - dictionary with the expected model inputs.
             - dictionary with the expected target labels.
         """
-        if not hasattr(self, "nlp"):
-            raise ValueError(
-                "Missing attribute nlp on data module object. It is likely the nlp() method has not been called.")
         return single_text_collate_function(sample,
                                             self.text_col,
                                             self.label_col,
                                             self.sample_id_col,
-                                            self.nlp['tokenizer'],
+                                            self.tokenizer,
                                             self.label_encoder,
                                             evaluate=self.evaluate)
 

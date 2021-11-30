@@ -1,6 +1,6 @@
 from collections import namedtuple
 from torchnlp.encoders import LabelEncoder
-from lib.src.common.tokenizer import Tokenizer
+from lib.src.nlp.tokenizer import Tokenizer
 from torchnlp.utils import collate_tensors
 from torch import Tensor, FloatTensor, transpose
 from typing import List, Union

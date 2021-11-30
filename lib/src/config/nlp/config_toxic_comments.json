@@ -4,7 +4,6 @@
         "description": "Multiclass, Multilabel Sample",
         "dataset": "toxic_comments",
         "version": 0,
-        "nlp": true,
         "data_module": "toxic_comment_data_module",
         "model": "multilabel_transformer_classifier",
         "encoder_model": "bert-base-uncased",

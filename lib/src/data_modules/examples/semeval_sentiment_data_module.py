@@ -50,9 +50,6 @@ class SemEvalSentimentDataModule(BaseCSVDataModule):
             - dictionary with the expected model inputs.
             - dictionary with the expected target labels.
         """
-        if not hasattr(self, "nlp"):
-            raise ValueError(
-                "Missing attribute nlp on data module object. It is likely the nlp() method has not been called.")
         if self.text_col is None:
             raise NotImplementedError(
                 "To use the default collate function you need a text column in your hparams config under the key 'text', or some other way of preparing your sample from other functions.")
@@ -60,7 +57,7 @@ class SemEvalSentimentDataModule(BaseCSVDataModule):
                                             self.text_col,
                                             self.label_col,
                                             self.sample_id_col,
-                                            self.nlp['tokenizer'],
+                                            self.tokenizer,
                                             self.label_encoder,
                                             evaluate=self.evaluate)
 

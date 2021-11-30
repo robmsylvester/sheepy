@@ -2,7 +2,6 @@ import torch
 import argparse
 import pytorch_lightning as pl
 import wandb
-import pandas as pd
 from typing import List
 from pytorch_lightning import LightningDataModule
 from collections import OrderedDict
@@ -76,18 +75,6 @@ class BaseClassifier(pl.LightningModule):
         """ Sets different Learning rates for different parameter groups. """
         raise NotImplementedError(
             "configure_optimizers() has not been implemented. You must override this in your classifier")
-
-    # def predict(self, data_module: LightningDataModule, sample: dict) -> dict:
-    #     """Evaluation function
-
-    #     Args:
-    #         data_module (LightningDataModule): module with method prepare_sample()
-    #         sample (dict): Dictionary with correct key that specifies text column and value as text we want to classify
-
-    #     Returns:
-    #         dict: Dictionary with the input text and the predicted label.
-    #     """
-    #     pass
 
     def forward(self, tokens, lengths) -> dict:
         """ Usual pytorch forward function.
@@ -297,10 +284,6 @@ class BaseClassifier(pl.LightningModule):
 
         labels = targets["labels"]
         logits = model_out["logits"]
-
-        # in DP mode (default) make sure if result is scalar, there's another dim in the beginning
-        # if self.trainer.use_dp or self.trainer.use_ddp2:
-        #     loss_val = loss_val.unsqueeze(0)
 
         loss_key = stage + '/loss'
         output = OrderedDict({

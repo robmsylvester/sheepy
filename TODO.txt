@@ -13,7 +13,7 @@
 13. multiclass and multilabel. base as a special case of multilabel?
 14. update README
 15. done
-16. nlp argument tokenizer shit is ugly
+16. done
 17. dont call setup() test stage in predict()
 18. done
 19. weights and biases turn off in eval mode
