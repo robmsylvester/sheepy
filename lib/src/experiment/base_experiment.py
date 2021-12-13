@@ -1,13 +1,13 @@
 import argparse
 import json
-from typing import List, Dict
 import pytorch_lightning as pl
 import os
-from argparse import Namespace
+from argparse import Namespace, ArgumentError
 from lib.src.common.logger import get_std_out_logger
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.callbacks import ModelCheckpoint, LearningRateMonitor
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
+from torch.cuda import device_count
 # TODO - add restore from checkpoint
 
 class Experiment():
@@ -220,12 +220,64 @@ class Experiment():
     
     def predict_live(self):
         self.trainer.predict(self.model, dataloaders=self.data.predict_live_dataloader())
+    
+    @staticmethod
+    def validate_experiment_args(args: argparse.Namespace):
+        """Verifies that the experiment args passed are valid. For example, if the model is set to evaluation mode,
+        we need a directory of the trained model, etc. Throws an error if anything is off.
+
+        Args:
+            args (argparse.Namespace): argument namespace to be checked and validated and augmented,
+        
+        Returns:
+            args (argparse.Namespace): argument namespace after being modified.
+
+        Raises:
+            argparse.ArgumentError if something is amiss, or awry, or afoul....or askew.
+        """
+        args.n_gpu = device_count()
+        args.precision = 16 if args.fp16 and args.n_gpu > 0 else 32
+
+        if args.evaluate:
+            
+            if not args.evaluate_live:
+                if not args.evaluate_batch_file:
+                    raise ArgumentError("When running in batch evaluation mode, you must provide a text file to the evaluate_batch_file argument")
+                if not os.path.exists(args.evaluate_batch_file):
+                    raise ArgumentError("Cannot find evaluate_batch_file in file system located at {}".format(args.evaluate_batch_file))
+
+            if args.experiment_name is None or args.output_key is None:
+                raise ArgumentError(
+                    "You must pass a pretrained experiment name and the output column name or dict key as output_key.")
+
+            if args.pretrained_dir is None:
+                args.pretrained_dir = os.path.join(
+                    args.output_dir, args.project_name, args.experiment_name)
+
+            args.output_dir = os.path.join(
+                args.pretrained_dir, 'eval')
+
+            args.data_output = os.path.join(
+                args.data_dir, 'eval', args.experiment_name)
+
+            if not os.path.exists(args.data_output):
+                os.makedirs(args.data_output)
+        else:
+            if args.experiment_name is None:
+                args.experiment_name = "{}bit_{}_v{}".format(
+                    args.precision, args.time, args.version)
+
+            args.output_dir = os.path.join(
+                args.output_dir, args.project_name, args.experiment_name)
+
+        if not os.path.exists(args.output_dir):
+            os.makedirs(args.output_dir)
+        
+        return args
 
     @classmethod
     def add_model_specific_args(cls, parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
         """ Return the argument pasrser with necessary args for this class appended to it """
-        parser.add_argument("--output_dir", type=str, required=True,
-                            help="This should just be a path to the base experiment directory of your projects locally")
         parser.add_argument("--project_name", type=str, default="test",
                             help="A custom project name. Will house all experiments under this project directory. First level under the output dir")
         parser.add_argument("--experiment_name", type=str, default=None,

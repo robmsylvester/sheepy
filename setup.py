@@ -11,6 +11,6 @@ setup(
     description='Experiment-tracking wrapper around PyTorch Lightning, Weights & Biases, Pandas, and Huggingface Trasformers that aims at rapid experimentation for common text classification tasks using transformers',
     author='Rob Sylvester',
     author_email='robmsylvester@gmail.co.com',
-    python_requires='>=3.8',
+    python_requires='==3.7',
     packages=find_packages()
 )
