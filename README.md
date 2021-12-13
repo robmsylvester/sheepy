@@ -11,12 +11,12 @@ There are a few base classes used for ETL and modeling.
 ## Installation and Preparation
 1. Clone repository
 2. Create virtual environment `virtualenv -p python3.7 .venv`
-(You must use python >= 3.7)
+(This is what version of Python I used to develop this. Later versions might give you problems)
 3. Install local requirements
    `pip install --upgrade pip`
    `pip install -r requirements.txt`
 4. Run setup script
-   `python setup.py install`
+   `python3.7 setup.py install`
 5. Install system requirements for ONNX (https://github.com/Microsoft/onnxruntime#system-requirements)
 6. Login to (and possibly create) Weights and Biases Account
    `wandb login`
@@ -33,3 +33,6 @@ See `src/main.py()` for a high-level of full execution.
 ## FAQ
 If you receive a runtime error that looks like this while training:
 RuntimeError: [Errno 2] No such file or directory: `/tmp/some_random_stuff.graph.json`, then it is related to a runtime bug under the hood with Weights and Biases and you can just run your code again and it should work. This happens from time to time.
+
+If you are installing this on Ubuntu/Debian and are installing Python3.7 from source, you'll need to grab the bz2 headers first. Before the build steps, run: `sudo apt-get install libbz2-dev`. Make sure you also have the standard build tools
+

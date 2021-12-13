@@ -11,7 +11,7 @@ CONFIG='src/config/nlp/config_sms_spam.json' #If training, make sure this matche
 OUTPUT_DIR='outputs/spam' # Used as output dir in training mode and as a model directory in eval mode
 OUTPUT_KEY='prediction' # Used as a column name or dictionary key to store predicted value in a dataset or dictionary
 
-python3 -m src.main \
+python3.7 -m src.main \
     --experiment_name $EXPERIMENT_NAME \
     --version $VERSION \
     --output_dir $OUTPUT_DIR \
