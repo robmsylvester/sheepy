@@ -165,11 +165,12 @@ class Experiment():
         to self.custom_callbacks
         """
         self.checkpoint_callback = self._build_checkpoint_callback()
-        self.early_stop_callback = self._build_early_stop_callback() if self.args.hparams['early_stop_enabled'] else False
-
         self.lr_monitor_callback = LearningRateMonitor()
-        self.custom_callbacks = [self.checkpoint_callback]
-
+        self.custom_callbacks = [self.checkpoint_callback, self.lr_monitor_callback]
+        if self.args.hparams['early_stop_enabled']:
+            self.early_stop_callback = self._build_early_stop_callback()
+            self.custom_callbacks.append(self.early_stop_callback)
+        
     def _build_early_stop_callback(self):
         """Helper function to wrap around PyTL's early-stopping function, around validation loss only at this moment"""
         early_stop = EarlyStopping(
