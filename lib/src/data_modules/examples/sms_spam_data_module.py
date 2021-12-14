@@ -52,10 +52,10 @@ class SmsSpamDataModule(BaseCSVDataModule):
         "Downloads the data if it doesn't exist. Unzips it, and deletes the zip file. Reads the data file"
         if self.evaluate:
             self.logger.info("Reading evaluation dataset directory {}".format(self.args.data_dir))
-            self.dataframes = []
+            self.all_dataframes = []
             for f in os.listdir(self.args.data_dir):
                 if f.endswith(".txt"):
-                    self.dataframes.append(self._read_evaluation_file(os.path.join(self.args.data_dir, f)))
+                    self.all_dataframes.append(self._read_evaluation_file(os.path.join(self.args.data_dir, f)))
             return
         
         if not os.path.exists(self.args.data_dir):
@@ -82,7 +82,7 @@ class SmsSpamDataModule(BaseCSVDataModule):
         assert os.path.exists(os.path.join(self.args.data_dir, "SMSSpamCollection")), "Failed to find SMSSpamCollection in data_dir {}".format(self.args.data_dir)
 
         self.logger.info("Reading dataset...")
-        self.dataframes = [self._read_dataset()]
+        self.all_dataframes = [self._read_dataset()]
 
     def prepare_sample(self, sample: list) -> CollatedSample:
         """

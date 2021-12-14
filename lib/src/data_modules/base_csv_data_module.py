@@ -2,7 +2,7 @@ import argparse
 import os
 import pickle
 import pandas as pd
-from typing import Any
+from typing import Any, List
 from lib.src.common.df_ops import read_csv_text_classifier, split_dataframes, write_csv_dataset, resample_positives, resample_multilabel_positives
 from lib.src.data_modules.base_data_module import BaseDataModule
 
@@ -16,11 +16,34 @@ class BaseCSVDataModule(BaseDataModule):
         super().__init__(args)
         self.label_encoder = None
         self.train_class_sizes = None
-        # Additional columns we care about, which for now is none.
-        self.args.x_cols = []
+        self._validate_data_dir_args()
+        self.args.x_cols = [] # Additional columns we care about, which for now is none.
+
         if self.text_col is None:
             raise ValueError(
                 "The base CSV data module requires a text column passed in the config file hparams with the key 'text'")
+
+    def _validate_data_dir_args(self):
+        """Validates that either a data_dir arg has been passed, or alternatively separate arguments have been passed
+        specifying the location of the data directories for the train, validation, and test csv's.
+
+        Raises:
+            argparse.ArgumentError - If arguments are an invalid combination
+        """
+        if self.args.data_dir is not None:
+            if not os.path.exists(self.args.data_dir):
+                raise argparse.ArgumentError("The passed directory for data_dir does not exist: {}".format(self.args.data_dir))
+            self.logger.info("Using single filesystem data location {}".format(self.args.data_dir))
+        else:
+            if self.evaluate:
+                raise argparse.ArgumentError("When running in evaluation mode, pass the location of this data dir to the data_dir argument")
+            if self.args.train_data_dir is None or not os.path.exists(self.args.train_data_dir):
+                raise argparse.ArgumentError("The passed directory for train_data_dir does not exist: {}".format(self.args.train_data_dir))
+            if self.args.val_data_dir is None or not os.path.exists(self.args.val_data_dir):
+                raise argparse.ArgumentError("The passed directory for val_data_dir does not exist: {}".format(self.args.val_data_dir))
+            if self.args.test_data_dir is None or not os.path.exists(self.args.test_data_dir):
+                raise argparse.ArgumentError("The passed directory for test_data_dir does not exist: {}".format(self.args.test_data_dir))
+            self.logger.info("Using separate filesystem data locations for train/val/test.\n\ttrain:{}\n\tval:{}\n\ttest:{}".format(self.args.train_data_dir, self.args.val_data_dir, self.args.test_data_dir))
 
     def _verify_module(self):
         """
@@ -56,29 +79,60 @@ class BaseCSVDataModule(BaseDataModule):
             self.label_encoder = module_dict['label_encoder']
         assert (self.label_encoder.vocab_size ==
                 self.args.hparams["num_labels"])
+    
+    def _read_csv_directory(self, csv_path: str) -> List[pd.DataFrame]:
+        """Given a directory of csv files, or a single csv file, return a list of pandas dataframes containing
+        the data according to the config profile of the experiment specifying the targeted columns.
+
+        Args:
+            csv_path (str): folder containing the .csv files, or a single .csv file
+
+        Returns:
+            List[pd.DataFrame]: List of pandas dataframes containing necessary data in each csv
+        """
+        if os.path.isdir(csv_path):
+            csvs = [t for t in os.listdir(csv_path) if t.endswith(".csv")]
+        elif csv_path.endswith(".csv"):
+            csvs = [csv_path]
+        else:
+            raise ValueError("csv path {} is neither a csv file nor a directory".format(csv_path))
+        if not len(csvs):
+            raise ValueError("Couldn't find any csv files in {}".format(csv_path))
+        out_dfs = []
+        for csv_file in csvs:
+            fpath = csv_file if csv_file.endswith(".csv") else os.path.join(csv_path, csv_file)
+            df = read_csv_text_classifier(
+                fpath, evaluate=self.evaluate, label_cols=self.label_col, text_col=self.text_col,
+                additional_cols=self.args.x_cols)
+            out_dfs.append(df)
+        return out_dfs
 
     def prepare_data(self):
         """
         This is the pytorch lightning prepare_data function that is responsible for downloading data and other 
         simple operations, such as verifying its existence and reading the files. See PyTL documentation for details.
         """
-        if os.path.isdir(self.args.data_dir):
-            csvs = [t for t in os.listdir(
-                self.args.data_dir) if t.endswith(".csv")]
-            if not len(csvs):
-                raise ValueError(
-                    "Couldn't find any csv files in {}".format(self.args.data_dir))
-            self.logger.info("\nProcessing {} csv files".format(len(csvs)))
-            self.dataframes = []
-            for csv in csvs:
-                fpath = os.path.join(self.args.data_dir, csv)
-                df = read_csv_text_classifier(
-                    fpath, evaluate=self.evaluate, label_cols=self.label_col, text_col=self.text_col,
-                    additional_cols=self.args.x_cols)
-                self.dataframes.append(df)
-        else:
-            raise ValueError(
-                "Prepare_data() for the csv data module expects a data_dir of csv files")
+
+        self.all_dataframes, self.train_dataframes, self.val_dataframes, self.test_dataframes = None, None, None, None
+        if os.path.isdir(self.args.data_dir): #A single directory is passed with all the data
+            # csvs = [t for t in os.listdir(
+            #     self.args.data_dir) if t.endswith(".csv")]
+            # if not len(csvs):
+            #     raise ValueError(
+            #         "Couldn't find any csv files in {}".format(self.args.data_dir))
+            # self.logger.info("\nProcessing {} csv files".format(len(csvs)))
+            # self.dataframes_all = []
+            # for csv in csvs:
+            #     fpath = os.path.join(self.args.data_dir, csv)
+            #     df = read_csv_text_classifier(
+            #         fpath, evaluate=self.evaluate, label_cols=self.label_col, text_col=self.text_col,
+            #         additional_cols=self.args.x_cols)
+            #     self.dataframes_all.append(df)
+            self.all_dataframes = self._read_csv_directory(self.args.data_dir)
+        else: #separate directories are passed for train/val/test data
+            self.train_dataframes = self._read_csv_directory(self.args.train_data_dir)
+            self.val_dataframes = self._read_csv_directory(self.args.val_data_dir)
+            self.test_datafraes = self._read_csv_directory(self.args.test_data_dir)
     
     def _resample_positive_rows(self, df: pd.DataFrame, positive_label: Any="1") -> pd.DataFrame:
         """Calls the df_ops resample function for a given dataframe, subject to the parameter arguments
@@ -127,32 +181,41 @@ class BaseCSVDataModule(BaseDataModule):
         else:
             return df
 
-    def setup(self, stage=None):
-        """
-        This is the pytorch lightning setup function that is responsible for splitting data and doing other
+    def setup(self, stage: str=None):
+        """This is the pytorch lightning setup function that is responsible for splitting data and doing other
         operations that are split across hardware. For more information, see PyTL documentation for details.
+
+        This specific function will 
+
+        Args:
+            stage ([str], optional): The PyTL stage. Defaults to None.
         """
         if stage == "fit" or stage == None:
-            self._train_dataset, self._val_dataset, self._test_dataset = split_dataframes(
-                self.dataframes, train_ratio=self.args.hparams['train_ratio'],
-                validation_ratio=self.args.hparams['validation_ratio'], test_ratio=None, shuffle=True)
-            
+            if self.all_dataframes is None:
+                self._train_dataset, _, _ = split_dataframes(self.train_dataframes, train_ratio=1., validation_ratio=0., test_ratio=0., shuffle=True)
+                _, self._val_dataset, _ = split_dataframes(self.val_dataframes, train_ratio=0., validation_ratio=1., test_ratio=0., shuffle=True)
+                _, _, self._test_dataset = split_dataframes(self.test_dataframes, train_ratio=0., validation_ratio=0., test_ratio=1., shuffle=True)
+            else:
+                self._train_dataset, self._val_dataset, self._test_dataset = split_dataframes(
+                    self.all_dataframes, train_ratio=self.args.hparams['train_ratio'],
+                    validation_ratio=self.args.hparams['validation_ratio'], test_ratio=None, shuffle=True)
+                
             self._train_dataset = self._resample_positive_rows(self._train_dataset)
             
             self.logger.info("\nSplit complete. (Total) Dataset Shapes:\nTrain: {}\nValidation: {}\nTest: {}".format(
                 self._train_dataset.shape, self._val_dataset.shape, self._test_dataset.shape))
-        else:
-            self._test_dataset = pd.concat(self.dataframes)
+        else: #evaluating
+            self._test_dataset = pd.concat(self.all_dataframes if self.all_dataframes is not None else self.test_dataframes)
             self._test_dataset[self.sample_id_col] = range(
                 len(self._test_dataset))
             self.logger.info("\nIn evaluation mode. Dataset Shapes:\nTest: {}".format(
                 self._test_dataset.shape))
 
     def _write_predictions_to_disk(self, df: pd.DataFrame) -> None:
-        """
-        writes dataframe to the output dir
-        :param df: pandas dataframe
-        :return: none
+        """Wrapper function to write predictions to disk for an output dataframe
+
+        Args:
+            df (pd.DataFrame): Dataframe storing the predictions from evaluation
         """
         write_csv_dataset(df, self.args.data_output)
 
@@ -165,6 +228,13 @@ class BaseCSVDataModule(BaseDataModule):
     @classmethod
     def add_model_specific_args(cls, parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
         """ Return the argument parser with necessary args for this class appended to it """
-        parser.add_argument("--data_dir", type=str, required=True,
-                            help="Path to the directory containing the csvs, or alternatively a single csv file")
+        parser.add_argument("--data_dir", type=str, required=False,
+                            help="If all of your data is in one folder, this is the path to that directory containing the csvs, or alternatively a single csv file")
+        parser.add_argument("--train_data_dir", type=str, required=False,
+                            help="If your data is split across folders, this is the path to the directory containing the training csvs, or alternatively a single train csv file")
+        parser.add_argument("--val_data_dir", type=str, required=False,
+                            help="If your data is split across folders, this is the path to the directory containing the validation csvs, or alternatively a single validation csv file")
+        parser.add_argument("--test_data_dir", type=str, required=False,
+                            help="If your data is split across folders, this is the path to the directory containing the test csvs, or alternatively a single test csv file")
+        
         return parser

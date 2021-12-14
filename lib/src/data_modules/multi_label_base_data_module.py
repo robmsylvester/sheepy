@@ -38,7 +38,7 @@ class MultiLabelBaseDataModule(BaseDataModule):
         """
         Builds out custom label encoder to specify logic for which outputs will be in logits layer.
         Because this is multilabel, our label encoder is just a list of the binary columns. There
-        really isn't any encoding/decoding we need. If we remove the binary restriction, we'll need one.
+        really isn't any encoding/decoding we need.
 
         For now, this method just implements some data verification logic that probably is better suited
         for prepare_data() anyway.

@@ -15,7 +15,6 @@ from lib.src.models.multilabel_transformer_classifier import MultiLabelTransform
 data_module_mapping = {
     'base_csv_data_module': BaseCSVDataModule,
     'toxic_comment_data_module': MultiLabelCSVDataModule,
-    'synthetic_tone_data_module': MultiLabelCSVDataModule,
     'sms_spam_data_module': SmsSpamDataModule,
     'tweet_sentiment_data_module': TweetSentimentDataModule,
     'semeval_data_module': SemEvalSentimentDataModule
