@@ -115,19 +115,6 @@ class BaseCSVDataModule(BaseDataModule):
 
         self.all_dataframes, self.train_dataframes, self.val_dataframes, self.test_dataframes = None, None, None, None
         if os.path.isdir(self.args.data_dir): #A single directory is passed with all the data
-            # csvs = [t for t in os.listdir(
-            #     self.args.data_dir) if t.endswith(".csv")]
-            # if not len(csvs):
-            #     raise ValueError(
-            #         "Couldn't find any csv files in {}".format(self.args.data_dir))
-            # self.logger.info("\nProcessing {} csv files".format(len(csvs)))
-            # self.dataframes_all = []
-            # for csv in csvs:
-            #     fpath = os.path.join(self.args.data_dir, csv)
-            #     df = read_csv_text_classifier(
-            #         fpath, evaluate=self.evaluate, label_cols=self.label_col, text_col=self.text_col,
-            #         additional_cols=self.args.x_cols)
-            #     self.dataframes_all.append(df)
             self.all_dataframes = self._read_csv_directory(self.args.data_dir)
         else: #separate directories are passed for train/val/test data
             self.train_dataframes = self._read_csv_directory(self.args.train_data_dir)

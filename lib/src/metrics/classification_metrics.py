@@ -2,7 +2,6 @@ import torch
 from typing import List, Any
 from lib.src.common.logger import get_std_out_logger
 from torchmetrics import MetricCollection, Accuracy, Precision, Recall, AUROC, F1, ROC, AUC, AveragePrecision
-from torchnlp.encoders import LabelEncoder
 
 #TODO - need to add LabelEncoder/dict on here if user passes pos_label argument in metrics so we can decode it to get its integer representation
 class ClassificationMetrics():

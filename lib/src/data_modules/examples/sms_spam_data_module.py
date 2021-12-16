@@ -5,7 +5,6 @@ import requests
 import zipfile
 from lib.src.data_modules.base_csv_data_module import BaseCSVDataModule
 from lib.src.common.collate import single_text_collate_function, CollatedSample
-from torchnlp.encoders import LabelEncoder
 
 class SmsSpamDataModule(BaseCSVDataModule):
     """
@@ -100,23 +99,6 @@ class SmsSpamDataModule(BaseCSVDataModule):
                                             self.tokenizer,
                                             self.label_encoder,
                                             evaluate=self.evaluate)
-
-    def _build_label_encoder(self):
-        """ Builds out custom label encoder to specify logic for which outputs will be in logits layer """
-        if not isinstance(self._train_dataset, pd.DataFrame):
-            raise NotImplementedError(
-                "Currently the default label encoder function only supports pandas dataframes")
-        train_labels_list = self._train_dataset[self.label_col].unique(
-        ).tolist()
-        assert len(train_labels_list) == self.args.hparams["num_labels"], "Passed {} to num_labels arg but see {} unique labels in train dataset".format(
-            self.args.hparams["num_labels"], len(train_labels_list))
-        self.label_encoder = LabelEncoder(
-            train_labels_list,
-            reserved_labels=[])
-        self.label_encoder.unknown_index = 0
-        self.logger.info("\nEncoded Labels:\n{}".format(
-            self.label_encoder.vocab))
-        assert self.label_encoder.vocab_size == self.args.hparams["num_labels"]
 
     @classmethod
     def add_model_specific_args(cls, parser: argparse.ArgumentParser) -> argparse.ArgumentParser:

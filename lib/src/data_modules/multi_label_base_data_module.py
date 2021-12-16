@@ -34,26 +34,24 @@ class MultiLabelBaseDataModule(BaseDataModule):
         assert self.args.hparams["num_labels"] == len(self.args.hparams["label"]), "config sees {} labels but num_labels set to {}".format(
             len(self.args.hparams["label"]), self.args.hparams["num_labels"])
 
-    def _build_label_encoder(self):
-        """
-        Builds out custom label encoder to specify logic for which outputs will be in logits layer.
-        Because this is multilabel, our label encoder is just a list of the binary columns. There
-        really isn't any encoding/decoding we need.
+    # def _build_label_encoder(self):
+    #     """
+    #     Builds out custom label encoder to specify logic for which outputs will be in logits layer.
+    #     Because this is multilabel, our label encoder is just a list of the binary columns. There
+    #     really isn't any encoding/decoding we need.
 
-        For now, this method just implements some data verification logic that probably is better suited
-        for prepare_data() anyway.
-        """
-        # TODO - move this to prepare_data in a sane way
-        if not isinstance(self._train_dataset, pd.DataFrame):
-            raise NotImplementedError(
-                "Currently the default label encoder function only supports pandas dataframes")
-        assert len(self.args.hparams["label"]
-                   ) == self.args.hparams["num_labels"]
-        for label in self.args.hparams["label"]:
-            unique_vals = self._train_dataset[label].unique()
-            if len(unique_vals) > 2:  # this restriction can probably be removed eventually
-                raise ValueError("Label {} must be binary. See values {}".format(
-                    label, str(unique_vals)))
+    #     For now, this method just implements some data verification logic that probably is better suited
+    #     for prepare_data() anyway.
+    #     """
+    #     # TODO - move this to prepare_data in a sane way
+    #     if not isinstance(self._train_dataset, pd.DataFrame):
+    #         raise NotImplementedError(
+    #             "Currently the default label encoder function only supports pandas dataframes")
+    #     assert len(self.args.hparams["label"]) == self.args.hparams["num_labels"]
+    #     for label in self.args.hparams["label"]:
+    #         unique_vals = self._train_dataset[label].unique()
+    #         if len(unique_vals) > 2:  # this restriction can probably be removed eventually
+    #             raise ValueError("Label {} must be binary. See values {}".format(label, str(unique_vals)))
 
     def prepare_sample(self, sample: List) -> CollatedSample:
         """

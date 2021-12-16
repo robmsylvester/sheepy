@@ -1,5 +1,5 @@
 from collections import namedtuple
-from torchnlp.encoders import LabelEncoder
+from lib.src.nlp.label_encoder import LabelEncoder
 from lib.src.nlp.tokenizer import Tokenizer
 from torchnlp.utils import collate_tensors
 from torch import Tensor, FloatTensor, transpose
@@ -89,23 +89,16 @@ def single_text_collate_function(sample: list,
         label_keys (str, List[str]): the list of keys in the dictionary in sample that contains the label
         id_key (str): the id key of the sample with which to uniquely identify it.
         tokenizer (Tokenizer): some tokenizer to use to encode the text, from the transformers tokenizer class for now
-        label_encoder (LabelEncoder, optional): an instance of LabelEncoder from torchnlp.encoders. Defaults to None.
+        label_encoder (LabelEncoder, optional): an instance of LabelEncoder.
         evaluate (bool, optional): In training mode, prepares the target from labels. Defaults to False.
 
     Raises:
         ValueError: The label encoder is not None with a list of labels passed
-        ValueError: The label encoder is not a torchnlp.LabelEncoder with a single label passed.
-        KeyError: The label key does not exist in the label encoder
         Exception: An unnknown label is found in the label encoder
 
     Returns:
         CollatedSample: tuple of dictionaries with the expected model inputs, target labels, and sample ids
     """
-    if isinstance(label_keys, list) and label_encoder is not None:
-        raise ValueError("If passing multiple labels to the label_keys, the labelencoder must be none")
-    if isinstance(label_keys, str) and not isinstance(label_encoder, LabelEncoder):
-        raise ValueError("If passing a single string to the label_keys, the labelencoder must be a torchnlp LabelEncoder object")
-
     sample = collate_tensors(sample)
     try:
         # batch-size is first dimension in these tensors
@@ -160,7 +153,7 @@ def windowed_text_collate_function(sample: list,
         text_key (str): the key of the dictionaries in sample that contain the text to be encoded
         label_key (str, List[str]): the list of keys in the dictionary in sample that contains the label
         id_key (str): the id key of the sample with which to uniquely identify it.
-        label_encoder (LabelEncoder, optional): an instance of LabelEncoder from torchnlp.encoders. Defaults to None.
+        label_encoder (LabelEncoder, optional): an instance of LabelEncoder. Defaults to None.
         tokenizer (Tokenizer): some tokenizer to use to encode the text, from the transformers tokenizer class for now
         additional_text_cols (List[str], optional): other text columns that need to be tokenized. Defaults to [].
         prev_sample_size (int, optional): number of previous text columns to sample out of those available. Defaults to None, which means all of them
@@ -170,18 +163,12 @@ def windowed_text_collate_function(sample: list,
 
     Raises:
         ValueError: The prev_sample_size > number of prev columns, or next_sample_size > num next columns
-        ValueError: The label encoder is not None with a list of labels passed
-        ValueError: The label encoder is not a torchnlp.LabelEncoder with a single label passed.
         KeyError: The label key does not exist in the label encoder
         Exception: An unnknown label is found in the label encoder
 
     Returns:
         CollatedSample: tuple of dictionaries with the expected model inputs, target labels, and sample ids
     """
-    if isinstance(label_keys, list) and label_encoder is not None:
-        raise ValueError("If passing multiple labels to the label_keys, the labelencoder must be none")
-    if isinstance(label_keys, str) and not isinstance(label_encoder, LabelEncoder):
-        raise ValueError("If passing a single string to the label_keys, the labelencoder must be a torchnlp LabelEncoder object")
 
     inputs = {'tokens': {}, 'lengths': {}}
     sample = collate_tensors(sample)

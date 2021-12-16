@@ -5,8 +5,8 @@ import wandb
 import torch
 from typing import Union, List, Dict, Optional
 from pytorch_lightning import LightningDataModule
-from torchnlp.encoders import LabelEncoder
 from torch.utils.data import DataLoader, RandomSampler
+from lib.src.nlp.label_encoder import LabelEncoder
 from lib.src.nlp.tokenizer import Tokenizer
 from lib.src.common.collate import single_text_collate_function, CollatedSample
 from lib.src.common.logger import get_std_out_logger
@@ -207,25 +207,9 @@ class BaseDataModule(LightningDataModule):
             num_workers=self.args.hparams['loader_workers'],
         )
 
-    # TODO - probably move to csv, generalize one
     def _build_label_encoder(self):
-        """ Builds out custom label encoder to specify logic for which outputs will be in logits layer
-        """
-        if not isinstance(self._train_dataset, pd.DataFrame):
-            raise NotImplementedError(
-                "Currently the default label encoder function only supports pandas dataframes")
-        train_labels_list = self._train_dataset[self.label_col].unique(
-        ).tolist()
-        assert len(train_labels_list) == self.args.hparams["num_labels"], "Passed {} to num_labels arg but see {} unique labels in train dataset.\nLabels are {}".format(
-            self.args.hparams["num_labels"], len(train_labels_list), train_labels_list)
-        self.label_encoder = LabelEncoder(
-            train_labels_list,
-            reserved_labels=[])
-        # TODO - this may not be always what we want
-        self.label_encoder.unknown_index = 0
-        self.logger.info("\nEncoded Labels:\n{}".format(
-            self.label_encoder.vocab))
-        assert self.label_encoder.vocab_size == self.args.hparams["num_labels"]
+        self.label_encoder = LabelEncoder.initializeFromDataframe(self._train_dataset, self.args.hparams["label"])
+        self.logger.info("Label Encoder Vocab: {}".format(self.label_encoder.vocab))
 
     # TODO - probably move to csv, generalize one
     def _set_class_sizes(self):

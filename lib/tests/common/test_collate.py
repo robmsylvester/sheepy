@@ -1,9 +1,9 @@
 import pytest
 import torch
-from torchnlp.encoders import LabelEncoder
 from torchnlp.utils import collate_tensors
 from lib.src.common.collate import single_text_collate_function, windowed_text_collate_function, _concatenate_text_samples
 from lib.src.nlp.tokenizer import Tokenizer
+from lib.src.nlp.label_encoder import LabelEncoder
 from lib.src.data_modules.base_data_module import BaseDataModule as dm
 
 
@@ -150,7 +150,7 @@ def sample_windowed_batch_sample() -> list:
 def label_encoder() -> LabelEncoder:
     return LabelEncoder(
         [0, 1],
-        reserved_labels=[])
+        unknown_label=None)
 
 
 @pytest.fixture
