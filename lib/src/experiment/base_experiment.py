@@ -258,11 +258,10 @@ class Experiment():
             args.output_dir = os.path.join(
                 args.pretrained_dir, 'eval')
 
-            args.data_output = os.path.join(
-                args.data_dir, 'eval', args.experiment_name)
+            args.output_prediction_path = os.path.join(args.output_dir, "batch_predictions.csv")
 
-            if not os.path.exists(args.data_output):
-                os.makedirs(args.data_output)
+            if not os.path.exists(args.output_dir):
+                os.makedirs(args.output_dir)
         else:
             if args.experiment_name is None:
                 args.experiment_name = "{}bit_{}_v{}".format(

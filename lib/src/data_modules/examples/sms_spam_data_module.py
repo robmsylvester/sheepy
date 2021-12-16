@@ -103,6 +103,6 @@ class SmsSpamDataModule(BaseCSVDataModule):
     @classmethod
     def add_model_specific_args(cls, parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
         """ Return the argument parser with necessary args for this class appended to it """
-        parser.add_argument(
-            "--data_dir", type=str, required=True, help="Path to the directory containing the dataset as separate files.")
+        parser.add_argument("--data_dir", type=str, required=True,
+                            help="If all of your data is in one folder, this is the path to that directory containing the csvs, or alternatively a single csv file")
         return parser

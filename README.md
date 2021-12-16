@@ -16,7 +16,7 @@ There are a few base classes used for ETL and modeling.
    `pip install --upgrade pip`
    `pip install -r requirements.txt`
 4. Run setup script
-   `python3.7 setup.py install`
+   `python setup.py install`
 5. Install system requirements for ONNX (https://github.com/Microsoft/onnxruntime#system-requirements)
 6. Login to (and possibly create) Weights and Biases Account
    `wandb login`

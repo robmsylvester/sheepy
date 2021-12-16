@@ -225,6 +225,21 @@ def write_json_dataset(df: pd.DataFrame, output_path: str):
     elif os.path.isfile(output_path) and output_path.endswith(".json"):
         df.to_json(output_path, orient='records')
 
+def map_labels(df: pd.DataFrame, label_col: str, label_map: Dict) -> pd.DataFrame:
+    """[summary]
+
+    Args:
+        df (pd.DataFrame): [description]
+        label_col (str): [description]
+        label_map (Dict): [description]
+
+    Returns:
+        pd.DataFrame: [description]
+    """
+    df[label_col] = df[label_col].map(label_map)
+    return df
+
+
 def resample_positives(df: pd.DataFrame, resample_rate: int, label_col: str, pos_label_val: Any, reshuffle=True) -> pd.DataFrame:
     """Given a dataframe, and logic identifying the positive label column, generate multiple copies of rows.
     Generally this is used on the training set with a sparse positive

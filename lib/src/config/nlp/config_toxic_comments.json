@@ -51,7 +51,7 @@
     "sweep": {
         "method": "grid",
         "metric": {
-            "name": "val_Accuracy",
+            "name": "val/Accuracy",
             "goal": "maximize"
         },
         "parameters": {

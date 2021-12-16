@@ -32,6 +32,11 @@
     ],
     "hparams": {
         "label": "label",
+        "label_map": {
+            "1": "positive",
+            "-1": "negative",
+            "0": "neutral"
+        },
         "text": "text",
         "positive_resample_rate" : 5,
         "disable_weight_scale": false,
@@ -61,7 +66,7 @@
         "unknown_index": 0
     },
     "validation": {
-        "metric": "val_AUROC",
+        "metric": "val/AUROC",
         "metric_goal": "max",
         "check_val_every_n_epoch": 1,
         "val_check_interval": 0.5,

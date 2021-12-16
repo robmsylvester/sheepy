@@ -1,7 +1,7 @@
 1. done
 2. done
 3. done
-4. remove data loading from prepare_data function
+4. check multi-GPU splits on setup(). verify still working on metrics
 5. remove setup.py dependency
 6. done
 7. done
@@ -10,13 +10,18 @@
 10. done
 11. doc strings standardized
 12. done
-13. multiclass and multilabel. base as a special case of multilabel?
+13. multiclass
 14. update README
 15. done
 16. done
-17. dont call setup() test stage in predict()
+17. dont default call setup() test stage in predict()
 18. done
-19. weights and biases turn off in eval mode
-20. dont need output_key so much
+19. weights and biases turn off in eval mode?
+20. done
 21. update config guide
 22. evaluate_live and evaluate_file are repetitive in base_transformer_classifier. consolidate with base_classifier.
+23. check tuner
+24. multilabel
+25. unknown_inded arg in config should probably become an unknown_label string
+26. output_dir should become model_dir
+27. output_key probably can go

@@ -41,7 +41,7 @@ class BaseDataModule(LightningDataModule):
                 if k in self.args.hparams:
                     self.args.hparams[k] = v
                     self.logger.debug("Setting data module hyperparameter {} to sweep value {}".format(k, v))
-
+    
     def prepare_data(self):
         raise NotImplementedError("This must be implemented by child class.")
     
@@ -53,17 +53,14 @@ class BaseDataModule(LightningDataModule):
 
     def _verify_module(self):
         """
-        Verify that the dataset shapes are correct, the class sizes and labels match the parameters, and if all is
-        well, then we build the encoder
+        Verify that the dataset shapes are correct, the class sizes and labels match the parameters.
         """
         pass
 
     def save_data_module(self, out_path: str = None):
-        # this class has nothing to pickle
         pass
 
     def load_data_module(self, in_path: str = None):
-        # this class has nothing to pickle
         pass
 
     def prepare_sample(self, sample: list) -> CollatedSample:
@@ -94,9 +91,6 @@ class BaseDataModule(LightningDataModule):
                                             evaluate=self.evaluate)
 
     def _write_predictions(self, outputs: List[dict]) -> None:
-        """
-
-        """
         all_columns = self.label_encoder.vocab
         all_columns.append(self.sample_id_col)
         all_batch_predictions_df = pd.DataFrame(columns=all_columns)
@@ -114,10 +108,9 @@ class BaseDataModule(LightningDataModule):
         cols = all_batch_predictions_df.columns.tolist()
         cols = cols[-1:] + cols[:-1]
         all_batch_predictions_df = all_batch_predictions_df[cols]
-        out_csv_path = self.args.evaluate_batch_file.split(".")[0] + "_pred.csv"
         
-        self.logger.info("Writing CSV file with {} predictions to {}".format(all_batch_predictions_df.shape[0], out_csv_path))
-        all_batch_predictions_df.to_csv(out_csv_path)
+        self.logger.info("Writing CSV file with {} predictions to {}".format(all_batch_predictions_df.shape[0], self.args.output_prediction_path))
+        all_batch_predictions_df.to_csv(self.args.output_prediction_path)
     
     def _verify_dataset_record_type(self, dataset: Union[pd.DataFrame, List[Dict]]) -> List[Dict]:
         """Verifies that dataset returns records datatype of type list[dict], converting from

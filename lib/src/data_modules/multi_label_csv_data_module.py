@@ -82,6 +82,6 @@ class MultiLabelCSVDataModule(MultiLabelBaseDataModule):
     @classmethod
     def add_model_specific_args(cls, parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
         """ Return the argument parser with necessary args for this class appended to it """
-        parser.add_argument("--data_dir", type=str, default="~/datasets/action_items/lmi_f8_v2_3",
+        parser.add_argument("--data_dir", type=str, default=None,
                             help="Path to the directory containing the csvs, or alternatively a single csv file")
         return parser

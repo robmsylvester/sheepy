@@ -3,7 +3,7 @@ import os
 import pickle
 import pandas as pd
 from typing import Any, List
-from lib.src.common.df_ops import read_csv_text_classifier, split_dataframes, write_csv_dataset, resample_positives, resample_multilabel_positives
+from lib.src.common.df_ops import read_csv_text_classifier, split_dataframes, write_csv_dataset, resample_positives, resample_multilabel_positives, map_labels
 from lib.src.data_modules.base_data_module import BaseDataModule
 
 
@@ -28,21 +28,21 @@ class BaseCSVDataModule(BaseDataModule):
         specifying the location of the data directories for the train, validation, and test csv's.
 
         Raises:
-            argparse.ArgumentError - If arguments are an invalid combination
+            ValueError- If arguments are an invalid combination
         """
-        if self.args.data_dir is not None:
+        if self.evaluate:
+            return
+        if hasattr(self.args, 'data_dir'):
             if not os.path.exists(self.args.data_dir):
-                raise argparse.ArgumentError("The passed directory for data_dir does not exist: {}".format(self.args.data_dir))
+                raise ValueError("The passed directory for data_dir does not exist: {}".format(self.args.data_dir))
             self.logger.info("Using single filesystem data location {}".format(self.args.data_dir))
         else:
-            if self.evaluate:
-                raise argparse.ArgumentError("When running in evaluation mode, pass the location of this data dir to the data_dir argument")
-            if self.args.train_data_dir is None or not os.path.exists(self.args.train_data_dir):
-                raise argparse.ArgumentError("The passed directory for train_data_dir does not exist: {}".format(self.args.train_data_dir))
-            if self.args.val_data_dir is None or not os.path.exists(self.args.val_data_dir):
-                raise argparse.ArgumentError("The passed directory for val_data_dir does not exist: {}".format(self.args.val_data_dir))
-            if self.args.test_data_dir is None or not os.path.exists(self.args.test_data_dir):
-                raise argparse.ArgumentError("The passed directory for test_data_dir does not exist: {}".format(self.args.test_data_dir))
+            if not hasattr(self.args, 'train_data_dir') or not os.path.exists(self.args.train_data_dir):
+                raise ValueError("The passed directory for train_data_dir does not exist: {}".format(self.args.train_data_dir))
+            if not hasattr(self.args, 'val_data_dir') or not os.path.exists(self.args.val_data_dir):
+                raise ValueError("The passed directory for val_data_dir does not exist: {}".format(self.args.val_data_dir))
+            if not hasattr(self.args, 'test_data_dir') or not os.path.exists(self.args.test_data_dir):
+                raise ValueError("The passed directory for test_data_dir does not exist: {}".format(self.args.test_data_dir))
             self.logger.info("Using separate filesystem data locations for train/val/test.\n\ttrain:{}\n\tval:{}\n\ttest:{}".format(self.args.train_data_dir, self.args.val_data_dir, self.args.test_data_dir))
 
     def _verify_module(self):
@@ -114,12 +114,12 @@ class BaseCSVDataModule(BaseDataModule):
         """
 
         self.all_dataframes, self.train_dataframes, self.val_dataframes, self.test_dataframes = None, None, None, None
-        if os.path.isdir(self.args.data_dir): #A single directory is passed with all the data
+        if hasattr(self.args, 'data_dir'): #A single directory is passed with all the data
             self.all_dataframes = self._read_csv_directory(self.args.data_dir)
         else: #separate directories are passed for train/val/test data
             self.train_dataframes = self._read_csv_directory(self.args.train_data_dir)
             self.val_dataframes = self._read_csv_directory(self.args.val_data_dir)
-            self.test_datafraes = self._read_csv_directory(self.args.test_data_dir)
+            self.test_dataframes = self._read_csv_directory(self.args.test_data_dir)
     
     def _resample_positive_rows(self, df: pd.DataFrame, positive_label: Any="1") -> pd.DataFrame:
         """Calls the df_ops resample function for a given dataframe, subject to the parameter arguments
@@ -188,23 +188,21 @@ class BaseCSVDataModule(BaseDataModule):
                     validation_ratio=self.args.hparams['validation_ratio'], test_ratio=None, shuffle=True)
                 
             self._train_dataset = self._resample_positive_rows(self._train_dataset)
+
+            if 'label_map' in self.args.hparams and isinstance(self.args.hparams['label_map'], dict):
+                self.logger.info("Using label map {}".format(self.args.hparams['label_map']))
+                self._train_dataset = map_labels(self._train_dataset, self.label_col, self.args.hparams['label_map'])
+                self._val_dataset = map_labels(self._val_dataset, self.label_col, self.args.hparams['label_map'])
+                self._test_dataset = map_labels(self._test_dataset, self.label_col, self.args.hparams['label_map'])
             
-            self.logger.info("\nSplit complete. (Total) Dataset Shapes:\nTrain: {}\nValidation: {}\nTest: {}".format(
+            self.logger.info("Dataset split complete. (Total) Dataset Shapes:\n\tTrain: {}\nV\talidation: {}\n\tTest: {}".format(
                 self._train_dataset.shape, self._val_dataset.shape, self._test_dataset.shape))
         else: #evaluating
             self._test_dataset = pd.concat(self.all_dataframes if self.all_dataframes is not None else self.test_dataframes)
             self._test_dataset[self.sample_id_col] = range(
                 len(self._test_dataset))
-            self.logger.info("\nIn evaluation mode. Dataset Shapes:\nTest: {}".format(
+            self.logger.info("In evaluation mode. Dataset Shapes:\n\tTest: {}".format(
                 self._test_dataset.shape))
-
-    def _write_predictions_to_disk(self, df: pd.DataFrame) -> None:
-        """Wrapper function to write predictions to disk for an output dataframe
-
-        Args:
-            df (pd.DataFrame): Dataframe storing the predictions from evaluation
-        """
-        write_csv_dataset(df, self.args.data_output)
 
     def _set_class_sizes(self):
         self.train_class_sizes = self._train_dataset[self.label_col].value_counts(
