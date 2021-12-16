@@ -14,15 +14,15 @@ from lib.src.common.logger import get_std_out_logger
 
 class BaseDataModule(LightningDataModule):
 
-    # it's used for joining predicted values with original dataset records a batch inference (see output_dataset method)
-    sample_id_col = 'sample_id' #TODO - put in init function on self        
+    # # it's used for joining predicted values with original dataset records a batch inference (see output_dataset method)
+    # sample_id_col = 'sample_id' #TODO - put in init function on self        
 
     def __init__(self, args: argparse.Namespace):
         super().__init__()
         self.logger = get_std_out_logger()
         self.args = args
         self._set_tune_params()
-
+        self.sample_id_col = 'sample_id'
         self.evaluate = self.args.evaluate  # readability
         self.label_col = self.args.hparams["label"]  # readability
         self.text_col = self.args.hparams["text"]  # readability

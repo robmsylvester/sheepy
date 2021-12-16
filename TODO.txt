@@ -1,5 +1,5 @@
 1. done
-2. data loader on separate files
+2. done
 3. done
 4. remove data loading from prepare_data function
 5. remove setup.py dependency
