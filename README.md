@@ -38,6 +38,10 @@ There are demo scripts that can be used to showcase the framework.
 ### Tests
 `./run_tests.sh` will run tests.
 
+## Weights and Biases
+You'll need a (free) weights and biases account to visualize metrics that are tracked in your experiment. When running
+the shell scripts, you'll be prompted to create/login to it.
+
 ## Important Classes
 ### Experiments
 The experiment class houses the highest level abstraction. It consists of
@@ -79,7 +83,7 @@ whose results are written to disk, or a live evaluation whose results are sent b
 This mode is used for hyperparameter tuning. It makes use of weights and biases and the config sweep JSON to run a specific optimization technique
 and report back the best results
 
-## Using The Framework Yourself
+## Using The Framework For New Experiments/Datasets
 To use the framework yourself on your own dataset, you'll need to.
 1. Create a config JSON modeled after one of the examples
 1. Create a data module. It will likely inherit from the BaseDataModule, or maybe the BaseCSVDataModule. These are called like normal
