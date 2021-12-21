@@ -141,3 +141,4 @@ lib/outputs
 
 #resources for datasets
 lib/resources/datasets/tweet_sentiment140
+lib/resources/datasets/toxic_comments

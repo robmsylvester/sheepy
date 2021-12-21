@@ -1,13 +1,37 @@
 {
     "experiment": {
-        "project_name": "test_sentiment_three",
-        "description": "Multiclass, Multilabel Sample",
+        "project_name": "Toxic_Comment_Example",
+        "description": "Example on Multilabel Classification using Toxic Comment Dataset",
         "dataset": "toxic_comments",
         "version": 0,
         "data_module": "toxic_comment_data_module",
         "model": "multilabel_transformer_classifier",
-        "encoder_model": "bert-base-uncased",
         "restore_from_checkpoint": false
+    },
+    "metrics": {
+        "multilabel": true,
+        "tracked_metrics": [
+            {
+                "name": "accuracy",
+                "average": "macro"
+            },
+            {
+                "name": "auroc",
+                "average": "macro"
+            },
+            {
+                "name": "f1",
+                "average": "macro"
+            },
+            {
+                "name": "precision",
+                "average": "macro"
+            },
+            {
+                "name": "recall",
+                "average": "macro"
+            }
+        ]
     },
     "hparams": {
         "label": [
@@ -19,17 +43,18 @@
             "identity_hate"
         ],
         "text": "comment_text",
+        "encoder_model": "google/bert_uncased_L-2_H-128_A-2",
+        "positive_resample_rate" : 1,
         "disable_weight_scale": false,
         "nr_frozen_epochs": 1,
         "loader_workers": 8,
         "n_prev_text_samples": 0,
         "n_next_text_samples": 0,
         "context_labels": "remove",
-        "rich_labels": [],
         "batch_size": 32,
         "hidden_layer_sizes": [512, 256, 64],
         "save_epoch_count": 4,
-        "num_epochs": 3,
+        "num_epochs": 1,
         "num_epochs_decay": 100,
         "accumulate_grad_batches": 1,
         "gradient_clip_val": 1,
@@ -40,21 +65,29 @@
         "train_ratio": 0.90,
         "validation_ratio": 0.1,
         "test_ratio": 0.0,
-        "num_labels": 6
+        "num_labels": 6,
+        "unknown_index": 0
     },
     "validation": {
+        "metric": "val/AUROC",
+        "metric_goal": "max",
         "check_val_every_n_epoch": 1,
         "val_check_interval": 0.5,
         "gradient_log_steps": 100,
         "param_log_steps": null
     },
     "sweep": {
-        "method": "grid",
+        "name": "sweep_v1",
+        "method": "bayes",
         "metric": {
-            "name": "val/Accuracy",
-            "goal": "maximize"
+            "name": "val_AUROC",
+            "goal": "max"
         },
         "parameters": {
+            "learning_rate": {
+                "min": 1e-5,
+                "max": 5e-4
+            },
             "num_dense_layers": {
                 "values": [
                     [512, 256, 64],

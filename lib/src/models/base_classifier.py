@@ -95,7 +95,7 @@ class BaseClassifier(pl.LightningModule):
         Returns:
             torch.tensor with loss value.
         """
-        return self._loss(predictions["logits"], targets["labels"])
+        return self._loss(predictions["logits"].float(), targets["labels"].float())
 
     def training_step(self, batch: tuple, batch_idx: int, *args, **kwargs) -> dict:
         """ 
@@ -298,13 +298,11 @@ class BaseClassifier(pl.LightningModule):
     def _create_confusion_matrix(self, outputs: list, name="Confusion Matrix"):
         logits = torch.cat([output['logits']
                           for output in outputs]).detach().cpu()
-        pred = torch.argmax(logits, dim=1)
+        pred = torch.argmax(logits, dim=1).numpy()
         trg = torch.cat([output['target']
-                            for output in outputs]).detach().cpu()
+                            for output in outputs]).detach().cpu().numpy()
 
-        predictions = self.data.label_encoder.batch_decode(pred)
-        target = self.data.label_encoder.batch_decode(trg)
-        cm = wandb.plot.confusion_matrix(y_true=target, preds=predictions)
+        cm = wandb.plot.confusion_matrix(y_true=pred, preds=trg, class_names=self.data.label_encoder.vocab)
         return cm
 
     @classmethod

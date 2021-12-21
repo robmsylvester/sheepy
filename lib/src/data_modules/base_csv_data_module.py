@@ -3,7 +3,7 @@ import os
 import pickle
 import pandas as pd
 from typing import Any, List
-from lib.src.common.df_ops import read_csv_text_classifier, split_dataframes, write_csv_dataset, resample_positives, resample_multilabel_positives, map_labels
+from lib.src.common.df_ops import read_csv_text_classifier, split_dataframes, resample_positives, map_labels
 from lib.src.data_modules.base_data_module import BaseDataModule
 
 
@@ -155,24 +155,19 @@ class BaseCSVDataModule(BaseDataModule):
                     positive_label)
             else:
                 return df
-        elif isinstance(self.label_col, list): #multilabel
-            if isinstance(resample_rate, int):
-                resample_rate = {k: resample_rate for k in self.label_col}
-            
-            all_ones= all(v == 1 for v in resample_rate.values())
-            if all_ones:
-                return df
-            else:
-                self.logger.info("Resampling multilabel positives...")
-                return resample_multilabel_positives(df, resample_rate, positive_label)
         else:
             return df
+
+    def _maybe_map_labels(self):
+        if 'label_map' in self.args.hparams and isinstance(self.args.hparams['label_map'], dict):
+            self.logger.info("Using label map {}".format(self.args.hparams['label_map']))
+            self._train_dataset = map_labels(self._train_dataset, self.label_col, self.args.hparams['label_map'])
+            self._val_dataset = map_labels(self._val_dataset, self.label_col, self.args.hparams['label_map'])
+            self._test_dataset = map_labels(self._test_dataset, self.label_col, self.args.hparams['label_map'])
 
     def setup(self, stage: str=None):
         """This is the pytorch lightning setup function that is responsible for splitting data and doing other
         operations that are split across hardware. For more information, see PyTL documentation for details.
-
-        This specific function will 
 
         Args:
             stage ([str], optional): The PyTL stage. Defaults to None.
@@ -188,12 +183,7 @@ class BaseCSVDataModule(BaseDataModule):
                     validation_ratio=self.args.hparams['validation_ratio'], test_ratio=None, shuffle=True)
                 
             self._train_dataset = self._resample_positive_rows(self._train_dataset)
-
-            if 'label_map' in self.args.hparams and isinstance(self.args.hparams['label_map'], dict):
-                self.logger.info("Using label map {}".format(self.args.hparams['label_map']))
-                self._train_dataset = map_labels(self._train_dataset, self.label_col, self.args.hparams['label_map'])
-                self._val_dataset = map_labels(self._val_dataset, self.label_col, self.args.hparams['label_map'])
-                self._test_dataset = map_labels(self._test_dataset, self.label_col, self.args.hparams['label_map'])
+            self._maybe_map_labels()
             
             self.logger.info("Dataset split complete. (Total) Dataset Shapes:\n\tTrain: {}\nV\talidation: {}\n\tTest: {}".format(
                 self._train_dataset.shape, self._val_dataset.shape, self._test_dataset.shape))

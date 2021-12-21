@@ -8,28 +8,31 @@
         "model": "transformer_classifier",
         "restore_from_checkpoint": false
     },
-    "metrics": [
-        {
-            "name": "accuracy",
-            "average": "micro"
-        },
-        {
-            "name": "auroc",
-            "average": "macro"
-        },
-        {
-            "name": "f1",
-            "average": "macro"
-        },
-        {
-            "name": "precision",
-            "average": "micro"
-        },
-        {
-            "name": "recall",
-            "average": "micro"
-        }
-    ],
+    "metrics": {
+        "multilabel": false,
+        "tracked_metrics": [
+            {
+                "name": "accuracy",
+                "average": "micro"
+            },
+            {
+                "name": "auroc",
+                "average": "macro"
+            },
+            {
+                "name": "f1",
+                "average": "macro"
+            },
+            {
+                "name": "precision",
+                "average": "micro"
+            },
+            {
+                "name": "recall",
+                "average": "micro"
+            }
+        ]
+    },
     "hparams": {
         "label": "label",
         "text": "text",

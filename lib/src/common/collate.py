@@ -116,13 +116,14 @@ def single_text_collate_function(sample: list,
     else:
         try:
             if isinstance(label_keys, list):
-                outputs = []
-                for l in label_keys:
-                    integerized_label = [int(i) for i in sample[l]]
-                    outputs.append(integerized_label)
-                # transpose gets us to (batch_size, num_labels)
-                labels = transpose(FloatTensor(outputs), 0, 1)
-                targets = {"labels": labels}
+                targets = {"labels": label_encoder.batch_encode_multilabel(sample)}
+                # outputs = []
+                # for l in label_keys:
+                #     integerized_label = [int(i) for i in sample[l]]
+                #     outputs.append(integerized_label)
+                # # transpose gets us to (batch_size, num_labels)
+                # labels = transpose(FloatTensor(outputs), 0, 1)
+                # targets = {"labels": labels}
             elif isinstance(label_keys, str):
                 targets = {"labels": label_encoder.batch_encode(sample[label_keys])}
         except KeyError:
@@ -228,13 +229,15 @@ def windowed_text_collate_function(sample: list,
     else:
         try:
             if isinstance(label_keys, list):
-                outputs = []
-                for l in label_keys:
-                    integerized_label = [int(i) for i in sample[l]]
-                    outputs.append(integerized_label)
-                # transpose gets us to (batch_size, num_labels)
-                labels = transpose(FloatTensor(outputs), 0, 1)
-                targets = {"labels": labels}
+                targets = {"labels": label_encoder.batch_encode_multilabel(sample)}
+
+                # outputs = []
+                # for l in label_keys:
+                #     integerized_label = [int(i) for i in sample[l]]
+                #     outputs.append(integerized_label)
+                # # transpose gets us to (batch_size, num_labels)
+                # labels = transpose(FloatTensor(outputs), 0, 1)
+                # targets = {"labels": labels}
             elif isinstance(label_keys, str):
                 targets = {"labels": label_encoder.batch_encode(sample[label_keys])}
         except KeyError:

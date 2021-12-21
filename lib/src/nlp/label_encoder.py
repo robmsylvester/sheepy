@@ -1,6 +1,6 @@
 import pandas as pd
-from torch import Tensor, tensor, stack, long
-from typing import List
+from torch import Tensor, transpose, tensor, stack, long
+from typing import List, Dict
 
 class LabelEncoder():
     def __init__(self, labels: List[str], multilabel: bool=False, unknown_label: str=None):
@@ -45,6 +45,33 @@ class LabelEncoder():
         """
         batch = [self.encode(label_str) for label_str in label_strings]
         return stack(batch, dim=0)
+    
+    #TODO - add support for unknown label?
+    def batch_encode_multilabel(self, sample: Dict) -> Tensor:
+        """Given a dictionary input that follows from the output of torch's collate_tensors function, create a single tensor that
+        stores the labels for the label columns provided.
+
+        Args:
+            sample (Dict): Dictionary where each key is a column/feature in the dataset, which may or may not be a label, and each value
+            is the concatenated batch results for this sample batch.
+
+            Example for batch of two
+            {'feature_a': torch.Size([2, 5]), 'feature_b': torch.Size([2, 5], 'label_a': torch.Size([2, 1], 'label_b': torch.Size([2, 1])}
+
+        Returns:
+            Tensor: 2D float tensor of size batch_size x num_labels
+        
+        Raises:
+            ValueError: any of the labels do not exist in the vocabulary and there is not an unknown_label argument set
+        """
+        outputs = []
+        for l in self.vocab:
+            integerized_label = [int(i) for i in sample[l]]
+            outputs.append(integerized_label)
+        outputs = tensor(outputs)
+        # transpose gets us to (batch_size, num_labels)
+        labels = transpose(outputs, 0, 1)
+        return labels
 
     def decode(self, label_tensor: Tensor) -> str:
         """Given a tensor with a single integer label, return a tensor of shape [1] containing the string representation of the label.
@@ -74,6 +101,29 @@ class LabelEncoder():
         batch = [t.squeeze(0) for t in label_tensor.split(1, dim=0)]
         return [self.decode(label_int) for label_int in batch]
     
+    #TODO - add support for unknown label?
+    def batch_decode_multilabel(self, label_tensor: Tensor) -> Dict:
+        """[summary]
+
+        Args:
+            label_tensor (Tensor): Tensor of shape (batch_size, num_labels), which is filled with 0's or 1's, where label_tensor[:, i] corresponds to the label in self.vocab[i]
+
+        Returns:
+            Dict: A dictionary of {'first_label': [0,1,1,0...], 'second_label': [1,1,0,0...]} where the keys are self.vocab and the values are numpy arrays of length batch_size
+        """
+        output_dict = {}
+        for label_idx, label in enumerate(self.vocab):
+            output_dict[label] = label_tensor[:, label_idx]
+        return output_dict
+
+        # outputs = []
+        # for l in self.vocab:
+        #     integerized_label = [int(i) for i in sample[l]]
+        #     outputs.append(integerized_label)
+        # # transpose gets us to (batch_size, num_labels)
+        # labels = transpose(FloatTensor(outputs), 0, 1)
+        # return labels
+    
     @classmethod
     def initializeFromDataframe(cls, df: pd.DataFrame, label_col: str, reserved_labels: List[str] = [], unknown_label: str=None):
         labels_list = reserved_labels
@@ -101,17 +151,3 @@ class LabelEncoder():
             labels_list.append(unknown_label)
         
         return cls(labels_list, multilabel=True, unknown_label=unknown_label)
-
-
-# >>> samples = ['label_a', 'label_b']
-# >>> encoder = LabelEncoder(samples, reserved_labels=['unknown'], unknown_index=0)
-# >>> encoder.encode('label_a')
-# tensor(1)
-# >>> encoder.decode(encoder.encode('label_a'))
-# 'label_a'
-# >>> encoder.encode('label_c')
-# tensor(0)
-# >>> encoder.decode(encoder.encode('label_c'))
-# 'unknown'
-# >>> encoder.vocab
-# ['unknown', 'label_a', 'label_b']

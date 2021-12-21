@@ -2,7 +2,6 @@
 2. done
 3. done
 4. check multi-GPU splits on setup(). verify still working on metrics
-5. remove setup.py dependency
 6. done
 7. done
 8. done
@@ -10,8 +9,8 @@
 10. done
 11. doc strings standardized
 12. done
-13. multiclass
-14. update README
+13. done
+14. done
 15. done
 16. done
 17. dont default call setup() test stage in predict()
@@ -22,6 +21,17 @@
 22. evaluate_live and evaluate_file are repetitive in base_transformer_classifier. consolidate with base_classifier.
 23. check tuner
 24. multilabel
-25. unknown_inded arg in config should probably become an unknown_label string
+25. unknown_index arg in config should probably become an unknown_label string
 26. output_dir should become model_dir
 27. output_key probably can go
+28. replace nlp with "examples" in config dir
+29. maybe lose the windowed stuff
+30. add tests for label encoder multilabel
+31. tweet sentiment data module updated / removed
+32. prepare_data really needs to just be download code
+33. nuke all this unused code
+34. setup() with multilabel and the example data modules needs to be refactored. lots of reusable code
+35. confusion matrices should become torchmetrics confusion matrix, and go in the classification_metrics class
+36. metrics with None get pytorch_lightning.utilities.exceptions.MisconfigurationException:. probably need to build out individual metrics for each in that case.
+37. multiclass argument on torchmetrics should be set for the metrics that have this argument
+38. put datasets on s3 and adjust prepare_data functions to load them there

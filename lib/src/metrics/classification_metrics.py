@@ -1,7 +1,7 @@
 import torch
 from typing import List, Any
 from lib.src.common.logger import get_std_out_logger
-from torchmetrics import MetricCollection, Accuracy, Precision, Recall, AUROC, F1, ROC, AUC, AveragePrecision
+from torchmetrics import Metric, MetricCollection, Accuracy, Precision, Recall, AUROC, F1, ROC, AUC, AveragePrecision
 
 #TODO - need to add LabelEncoder/dict on here if user passes pos_label argument in metrics so we can decode it to get its integer representation
 class ClassificationMetrics():
@@ -34,21 +34,35 @@ class ClassificationMetrics():
 
         self._create_metrics()
     
-    def _create_metrics(self):
-        """Instantiates the auroc, f1, precision, and recall based upon the initialization args for the class"""
+    def _get_metric_list(self) -> List[Metric]:
+        """[summary]
+
+        Returns:
+            List[Metric]: [description]
+        """
         tracked_metrics = []
-        for metric_dict in self.config:
+        for metric_dict in self.config['tracked_metrics']:
             if metric_dict['name'] in self.torchmetrics_map:
                 metric_class = self.torchmetrics_map[metric_dict['name']]
+
                 args_dict = metric_dict.copy()
+
+                if not self.config["multilabel"] and self.num_labels > 2 and args_dict['average'] == 'micro':
+                    raise ValueError("micro cannot be used as an averaging technique for multiclass metrics. Label {} uses micro in this multiclass metric. See https://torchmetrics.readthedocs.io/en/latest/references/modules.html".format(args_dict['name']))
+
                 del args_dict['name']
                 args_dict['num_classes'] = self.num_labels
-                args_dict['dist_sync_on_step']=True
+                args_dict['dist_sync_on_step'] = True
+
                 metric = metric_class(**args_dict)
                 tracked_metrics.append(metric)
             else:
                 self.logger.warn("Metric {} not found and will be ignored. See classification_metrics.py and verify that your metric is mapped to a torchmetrics class")
-
+        return tracked_metrics
+    
+    def _create_metrics(self):
+        """Instantiates the auroc, f1, precision, and recall based upon the initialization args for the class"""
+        tracked_metrics = self._get_metric_list()
         self.metric_collection = MetricCollection(tracked_metrics)
         self.train_metrics = self.metric_collection.clone(prefix='train/')
         self.validation_metrics = self.metric_collection.clone(prefix='val/')

@@ -1,9 +1,5 @@
 import argparse
-import pandas as pd
-from typing import List
 from lib.src.data_modules.base_data_module import BaseDataModule
-from lib.src.common.collate import CollatedSample, single_text_collate_function
-
 
 class MultiLabelBaseDataModule(BaseDataModule):
     """
@@ -33,44 +29,6 @@ class MultiLabelBaseDataModule(BaseDataModule):
             self.args.hparams["label"]) > 1, "there must be more than one label in the list for the multi label module to be used"
         assert self.args.hparams["num_labels"] == len(self.args.hparams["label"]), "config sees {} labels but num_labels set to {}".format(
             len(self.args.hparams["label"]), self.args.hparams["num_labels"])
-
-    # def _build_label_encoder(self):
-    #     """
-    #     Builds out custom label encoder to specify logic for which outputs will be in logits layer.
-    #     Because this is multilabel, our label encoder is just a list of the binary columns. There
-    #     really isn't any encoding/decoding we need.
-
-    #     For now, this method just implements some data verification logic that probably is better suited
-    #     for prepare_data() anyway.
-    #     """
-    #     # TODO - move this to prepare_data in a sane way
-    #     if not isinstance(self._train_dataset, pd.DataFrame):
-    #         raise NotImplementedError(
-    #             "Currently the default label encoder function only supports pandas dataframes")
-    #     assert len(self.args.hparams["label"]) == self.args.hparams["num_labels"]
-    #     for label in self.args.hparams["label"]:
-    #         unique_vals = self._train_dataset[label].unique()
-    #         if len(unique_vals) > 2:  # this restriction can probably be removed eventually
-    #             raise ValueError("Label {} must be binary. See values {}".format(label, str(unique_vals)))
-
-    def prepare_sample(self, sample: List) -> CollatedSample:
-        """
-        Function that prepares a sample to input the model.
-        :param sample: list of dictionaries.
-
-        Returns:
-            - dictionary with the expected model inputs.
-            - dictionary with the expected target labels.
-        """
-        if self.text_col is None:
-            raise NotImplementedError(
-                "To use the default collate function you need a text column in your hparams config under the key 'text', or some other way of preparing your sample from other functions.")
-        return single_text_collate_function(sample,
-                                            self.text_col,
-                                            self.label_col,
-                                            self.sample_id_col,
-                                            self.tokenizer,
-                                            evaluate=self.evaluate)
 
     @classmethod
     def add_model_specific_args(cls, parser: argparse.ArgumentParser) -> argparse.ArgumentParser:

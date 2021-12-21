@@ -15,9 +15,6 @@ from lib.src.models.base_classifier import BaseClassifier
 from lib.src.models.fully_connected_classifier import FullyConnectedClassifier
 from lib.src.nlp.text_representation import TextRepresentation
 
-
-# TODO -make decision here - replace args with hparams or leave and get silentily tracked by lightning. hmmmmmmmm
-
 class TransformerClassifier(BaseClassifier):
     """
     Sample model to show how to use a Transformer model to classify sentences.
@@ -69,7 +66,8 @@ class TransformerClassifier(BaseClassifier):
         self.class_weights = self._get_class_weights()
         self._loss = nn.CrossEntropyLoss(weight=self.class_weights)
 
-    # TODO: batch prediction
+    # TODO - maybe eliminate this. seems not to be called
+    # TODO: batch prediction.
     def predict(self, data_module: LightningDataModule, sample: dict) -> dict:
         """Evaluation function
 
@@ -90,7 +88,7 @@ class TransformerClassifier(BaseClassifier):
             logits = model_out["logits"].numpy()
 
             predicted_labels = [
-                self.data.label_encoder.index_to_token[prediction]
+                self.data.label_encoder.index_to_token[prediction] #TODO - this wont work
                 for prediction in np.argmax(logits, axis=1)
             ]
             sample["predicted_label"] = predicted_labels[0]
@@ -117,46 +115,83 @@ class TransformerClassifier(BaseClassifier):
             softmax_p = F.softmax(model_out["logits"], axis=1).numpy()
             return softmax_p[0]
 
-    def evaluate_live(self, data_module: LightningDataModule):
-        """
-        The evaluate live method for the base transformer classifier is just a REPL that processes text and passes
-        it to the trained model.
+    # def evaluate_live(self, data_module: LightningDataModule):
+    #     """
+    #     The evaluate live method for the base transformer classifier is just a REPL that processes text and passes
+    #     it to the trained model.
 
-        Args:
-            data_module (LightningDataModule): module implementing method prepare_sample()
-        """
-        print("Live Demo Mode.\nEnter 'q' or 'quit' (without quotes) to exit the program.\nEnter a single text_sample to run classification on.\n")
-        while True:
-            user_input = input("> ")
-            if user_input == "q" or user_input == "quit":
-                break
-            sample = {}
-            sample[data_module] = user_input.strip()
-            prediction = self.predict_prob(data_module, sample=sample)
-            pos_prob = prediction[1]
-            print(pos_prob)
+    #     Args:
+    #         data_module (LightningDataModule): module implementing method prepare_sample()
+    #     """
+    #     print("Live Demo Mode.\nEnter 'q' or 'quit' (without quotes) to exit the program.\nEnter a single text_sample to run classification on.\n")
+    #     while True:
+    #         user_input = input("> ")
+    #         if user_input == "q" or user_input == "quit":
+    #             break
+    #         sample = {}    # def evaluate_live(self, data_module: LightningDataModule):
+    #     """
+    #     The evaluate live method for the base transformer classifier is just a REPL that processes text and passes
+    #     it to the trained model.
 
-    def evaluate_file(self, file_path: str, out_path: str = None):
-        """
-        Evaluates a file, with one text_sample on each file, and gets the model prediction for each line. 
-        Sorts the return values with highest (positives) first, and appends to the out_path.
+    #     Args:
+    #         data_module (LightningDataModule): module implementing method prepare_sample()
+    #     """
+    #     print("Live Demo Mode.\nEnter 'q' or 'quit' (without quotes) to exit the program.\nEnter a single text_sample to run classification on.\n")
+    #     while True:
+    #         user_input = input("> ")
+    #         if user_input == "q" or user_input == "quit":
+    #             break
+    #         sample = {}
+    #         sample[data_module] = user_input.strip()
+    #         prediction = self.predict_prob(data_module, sample=sample)
+    #         print(prediction)
 
-        Args:
-            file_path (str): input file with one text_sample prediction done per line
-            out_path (str): output path of sorted predictions. if none, prints formatted to stdout
-        """
-        with open(file_path) as fp:
-            results_dict = {}
-            for _, line in enumerate(tqdm(fp)):
-                sample = {}
-                sample[self.data.text_col] = line.strip()
-                prediction = self.predict_prob(self.data, sample=sample)
-                pos_prob = prediction[1]
-                results_dict[line.strip()] = pos_prob
-        sorted_results_dict = {k: str(v) for k, v in sorted(
-            results_dict.items(), key=lambda x: x[1])}
-        with open(out_path, "w") as fp:
-            json.dump(sorted_results_dict, fp)
+    # def evaluate_file(self, file_path: str, out_path: str = None):
+    #     """
+    #     Evaluates a file, with one text_sample on each file, and gets the model prediction for each line. 
+    #     Sorts the return values with highest (positives) first, and appends to the out_path.
+
+    #     Args:
+    #         file_path (str): input file with one text_sample prediction done per line
+    #         out_path (str): output path of sorted predictions. if none, prints formatted to stdout
+    #     """
+    #     with open(file_path) as fp:
+    #         results_dict = {}
+    #         for _, line in enumerate(tqdm(fp)):
+    #             sample = {}
+    #             sample[self.data.text_col] = line.strip()
+    #             prediction = self.predict_prob(self.data, sample=sample)
+    #             results_dict[line.strip()] = prediction
+    #     sorted_results_dict = {k: str(v) for k, v in sorted(
+    #         results_dict.items(), key=lambda x: x[1])}
+    #     with open(out_path, "w") as fp:
+    #         json.dump(sorted_results_dict, fp)
+    #         sample[data_module] = user_input.strip()
+    #         prediction = self.predict_prob(data_module, sample=sample)
+    #         pos_prob = prediction[1]
+    #         print(pos_prob)
+
+    # def evaluate_file(self, file_path: str, out_path: str = None):
+    #     """
+    #     Evaluates a file, with one text_sample on each file, and gets the model prediction for each line. 
+    #     Sorts the return values with highest (positives) first, and appends to the out_path.
+
+    #     Args:
+    #         file_path (str): input file with one text_sample prediction done per line
+    #         out_path (str): output path of sorted predictions. if none, prints formatted to stdout
+    #     """
+    #     with open(file_path) as fp:
+    #         results_dict = {}
+    #         for _, line in enumerate(tqdm(fp)):
+    #             sample = {}
+    #             sample[self.data.text_col] = line.strip()
+    #             prediction = self.predict_prob(self.data, sample=sample)
+    #             pos_prob = prediction[1]
+    #             results_dict[line.strip()] = pos_prob
+    #     sorted_results_dict = {k: str(v) for k, v in sorted(
+    #         results_dict.items(), key=lambda x: x[1])}
+    #     with open(out_path, "w") as fp:
+    #         json.dump(sorted_results_dict, fp)
 
     def forward(self, tokens, lengths) -> dict:
         """ Usual pytorch forward function.
@@ -180,8 +215,7 @@ class TransformerClassifier(BaseClassifier):
             0.0, tokens, word_embeddings, self.data.tokenizer.pad_index
         )
         sentemb = torch.sum(word_embeddings, 1)
-        sum_mask = mask.unsqueeze(-1).expand(word_embeddings.size()
-                                             ).float().sum(1)
+        sum_mask = mask.unsqueeze(-1).expand(word_embeddings.size()).float().sum(1)
         sentemb = sentemb / sum_mask
 
         # Linear Classifier
@@ -205,15 +239,23 @@ class TransformerClassifier(BaseClassifier):
         if self.current_epoch + 1 >= self.args.hparams['nr_frozen_epochs']:
             self.text_representation.unfreeze_encoder()
 
-    def save_onnx_model(self, save_name="model_final.onnx"):
-        """
-        Uses W&B's and Torch's Onnx hook to save the model
-        """
-        save_location = os.path.join(self.args.output_dir, save_name)
-        dummy_input_dimensions = torch.zeros(
-            self.text_representation.encoder_features, device=self.device)
-        torch.onnx.export(self, dummy_input_dimensions, save_location)
-        wandb.save(save_location)
+    # def save_onnx_model(self, save_name="model_final.onnx"):    # def save_onnx_model(self, save_name="model_final.onnx"):
+    #     """
+    #     Uses W&B's and Torch's Onnx hook to save the model
+    #     """
+    #     save_location = os.path.join(self.args.output_dir, save_name)
+    #     dummy_input_dimensions = torch.zeros(
+    #         self.text_representation.encoder_features, device=self.device)
+    #     torch.onnx.export(self, dummy_input_dimensions, save_location)
+    #     wandb.save(save_location)
+    #     """
+    #     Uses W&B's and Torch's Onnx hook to save the model
+    #     """
+    #     save_location = os.path.join(self.args.output_dir, save_name)
+    #     dummy_input_dimensions = torch.zeros(
+    #         self.text_representation.encoder_features, device=self.device)
+    #     torch.onnx.export(self, dummy_input_dimensions, save_location)
+    #     wandb.save(save_location)
 
     @classmethod
     def add_model_specific_args(cls, parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
