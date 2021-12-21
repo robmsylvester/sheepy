@@ -89,9 +89,11 @@ To use the framework yourself on your own dataset, you'll need to.
 1. Create a data module. It will likely inherit from the BaseDataModule, or maybe the BaseCSVDataModule. These are called like normal
 lightning data modules, so anything you want to override in prepare_data(), setup(), or any of the other lifecycle hooks you will need to
 write here.
+1. Any command line args you want to add can be done with the add_model_specific_args class method as seen in the other data module examples.
 1. Optionally create a model (lightning module) Base transformer classifiers are already written, but you might have some extra engineered features that you wish to concatenate using the augmented_transformer_classifier, for example.
 1. Make sure the name of your data module and model are registered in `lib/src/config/module_mappings.py` to point to your class.
 1. Create a shell script that calls the experiment class pointing at whatever arguments you need to specify. See the examples and `main.py`
+1. You'll want to register your code changes py reinstalling the setup script: `python setup.py install`
 
 ## FAQ
 1. If you receive a runtime error that looks like this while training:
@@ -99,3 +101,6 @@ RuntimeError: [Errno 2] No such file or directory: `/tmp/some_random_stuff.graph
 
 2. If you are installing this on Ubuntu/Debian and are installing Python3.7 from source, you'll possibly need to grab the bz2 headers first, especially
 if you have not been using python much on that filesystem. Before the build steps, run: `sudo apt-get install libbz2-dev`. Make sure you also have the standard build tools.
+
+3. If you run into memory errors, try dropping the batch size or using a 128-output vector model
+instead of a 768-output model.
