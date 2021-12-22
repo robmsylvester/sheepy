@@ -3,7 +3,7 @@ import os
 import sys
 sys.path.append(os.path.dirname(__file__))
 
-__version__ = "0.3.9"
+__version__ = "0.0.4"
 
 setup(
     name='transformer_classification_framework',

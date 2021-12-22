@@ -56,11 +56,11 @@ class ToxicCommentDataModule(MultiLabelCSVDataModule):
         """
         self.all_dataframes = None
         if stage == "fit" or stage == None:
-            self.train_dataframes = self._read_csv_directory(os.path.join(self.args.data_dir, "train_sample.csv"))
+            self.train_dataframes = self._read_csv_directory(os.path.join(self.args.data_dir, "train.csv"))
             self._train_dataset, self._val_dataset, _ = split_dataframes(self.train_dataframes, train_ratio=self.args.hparams['train_ratio'], validation_ratio=self.args.hparams['validation_ratio'], test_ratio=0., shuffle=True)
 
             #The test set is a bit funky, but we process it separately and remove the unlabeled examples. that's why test_filtered.csv exists
-            self.test_dataframes = self._read_csv_directory(os.path.join(self.args.data_dir, "test_filtered_sample.csv"))
+            self.test_dataframes = self._read_csv_directory(os.path.join(self.args.data_dir, "test_filtered.csv"))
             _, _, self._test_dataset = split_dataframes(self.test_dataframes, train_ratio=0., validation_ratio=0., test_ratio=1., shuffle=True)
 
             self._train_dataset = self._resample_positive_rows(self._train_dataset)

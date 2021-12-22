@@ -7,7 +7,6 @@ from lib.src.data_modules.base_csv_data_module import BaseCSVDataModule
 from lib.src.nlp.label_encoder import LabelEncoder
 from lib.src.common.df_ops import resample_multilabel_positives
 
-
 class MultiLabelCSVDataModule(BaseCSVDataModule):
     """
     CSV DataModule that accepts multiple possible label columns
@@ -112,43 +111,6 @@ class MultiLabelCSVDataModule(BaseCSVDataModule):
             self.pos_weights = module_dict['pos_weights']
         assert (self.label_encoder.vocab_size ==
                 self.args.hparams["num_labels"])
-
-    # # TODO - REPLACE
-    # def prepare_data(self):
-    #     if os.path.isdir(self.args.data_dir):
-    #         csvs = [t for t in os.listdir(
-    #             self.args.data_dir) if t.endswith(".csv")]
-    #         if not len(csvs):
-    #             raise ValueError(
-    #                 "Couldn't find any csv files in {}".format(self.args.data_dir))
-    #         self.logger.info("\nProcessing {} csv files".format(len(csvs)))
-    #         self.dataframes = []
-    #         for csv in csvs:
-    #             fpath = os.path.join(self.args.data_dir, csv)
-
-    #             df = read_csv_text_classifier(
-    #                 fpath, evaluate=self.evaluate, label_cols=self.label_col, text_col=self.text_col, additional_cols=self.args.x_cols)
-    #             self.dataframes.append(df)
-    #     else:
-    #         raise ValueError(
-    #             "Prepare_data() for the csv data module expects a data_dir of csv files")
-
-    # #TODO - REPLACE
-    # def setup(self, stage=None):
-    #     if stage == "fit" or stage == None:
-    #         self._train_dataset, self._val_dataset, self._test_dataset = split_dataframes(
-    #             self.dataframes, train_ratio=self.args.hparams['train_ratio'], validation_ratio=self.args.hparams['validation_ratio'], test_ratio=None, shuffle=True)
-            
-    #         self._train_dataset = self._resample_positive_rows(self._train_dataset)
-            
-    #         self.logger.info("\nSplit complete. (Total) Dataset Shapes:\nTrain: {}\nValidation: {}\nTest: {}".format(
-    #             self._train_dataset.shape, self._val_dataset.shape, self._test_dataset.shape))
-    #     else:
-    #         self._test_dataset = pd.concat(self.dataframes)
-    #         self._test_dataset[self.sample_id_col] = range(
-    #             len(self._test_dataset))
-    #         self.logger.info("\nIn evaluation mode. Dataset Shapes:\nTest: {}".format(
-    #             self._test_dataset.shape))
 
     #TODO - this one is probably good
     def _set_class_sizes(self, positive_label="1", negative_label="0"):
