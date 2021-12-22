@@ -99,37 +99,6 @@ def read_csv_text_classifier(path: str,
 
     return return_df.astype(str)
 
-
-def window_text(df: pd.DataFrame, text_col: str = "text", n_prev_text_samples: int = 0, n_next_text_samples: int = 0):
-    """Given a dataframe with a targeted text column, generate columns n_prev_text_samples to the left and 
-        n_next_text_samples to the right that represent shifts of the targeted column, thereby allowing you
-        to have in a given row a window of conversation context to the left and right.
-
-    Args:
-        df (pd.DataFrame): the dataframe to modify (not in place)
-        text_col (str, optional): [description]. The target column to window Defaults to "text".
-        n_prev_text_samples (int, optional): The number of previous text columns to window. Defaults to 0.
-        n_next_text_samples (int, optional): The number of next text columns to window. Defaults to 0.
-
-    Raises:
-        ValueError: The text column is not in the dataframe
-
-    Returns:
-        [type]: The modified dataframe with the new columns, with names "{}_prev_{}".format(text_col, i) and "{}_next_{}".format(text_col, i)
-    """
-    if text_col not in df.columns:
-        raise ValueError(
-            "Cannot window text column {} that does not exist in the dataframe. Check config JSON and args to data modules".format(
-                text_col))
-    for i in range(1, n_prev_text_samples + 1):
-        col_name = "{}_prev_{}".format(text_col, i)
-        df[col_name] = df[text_col].shift(i).fillna("")
-    for i in range(1, n_next_text_samples + 1):
-        col_name = "{}_next_{}".format(text_col, i)
-        df[col_name] = df[text_col].shift(-i).fillna("")
-    return df
-
-
 def add_relative_position(document: pd.DataFrame, index_col=None) -> pd.DataFrame:
     """
     Given a dataframe and a possibly-specified index colummn, otherwise using the default,

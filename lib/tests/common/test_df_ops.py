@@ -1,6 +1,6 @@
 import pytest
 
-from lib.src.common.df_ops import read_csv, read_csv_text_classifier, window_text, resample_positives, resample_multilabel_positives, SOURCE_FILE
+from lib.src.common.df_ops import read_csv, read_csv_text_classifier, resample_positives, resample_multilabel_positives, SOURCE_FILE
 
 def test_read_csv_text_classifier():
     path = 'tests/resources/dummy_dataset.csv'
@@ -45,24 +45,6 @@ def test_read_csv_with_filter():
     assert (label_col in df.columns)
     assert ('group_id' not in df.columns)
     assert df.shape == (4,3)
-
-def test_window_csv():
-    path = 'tests/resources/dummy_dataset.csv'
-    text_col = 'text'
-    label_col = 'label'
-
-    column_list = ['text','label']
-
-    df = read_csv(path, column_list)
-
-    df = window_text(df, text_col=text_col, n_prev_text_samples=2, n_next_text_samples=2)
-    assert (text_col+'_prev_1' in df.columns)
-    assert (text_col+'_next_1' in df.columns)
-    assert (df.loc[0, text_col+'_prev_1'] == "")
-    assert (df.loc[1, text_col+'_prev_1'] == df.loc[0, text_col])
-    assert (df.loc[1, text_col+'_prev_1'] != df.loc[1, text_col])
-    assert (df.loc[df.shape[0] - 1, text_col+'_next_1'] == "")
-    assert (df.loc[df.shape[0] - 2, text_col+'_next_1'] == df.loc[df.shape[0] - 1, text_col])
 
 def test_resample_positives():
     path = 'tests/resources/dummy_dataset.csv'

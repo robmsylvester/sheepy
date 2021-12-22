@@ -2,7 +2,7 @@ from collections import namedtuple
 from lib.src.nlp.label_encoder import LabelEncoder
 from lib.src.nlp.tokenizer import Tokenizer
 from torchnlp.utils import collate_tensors
-from torch import Tensor, FloatTensor, transpose
+from torch import Tensor
 from typing import List, Union
 import random
 
@@ -117,13 +117,6 @@ def single_text_collate_function(sample: list,
         try:
             if isinstance(label_keys, list):
                 targets = {"labels": label_encoder.batch_encode_multilabel(sample)}
-                # outputs = []
-                # for l in label_keys:
-                #     integerized_label = [int(i) for i in sample[l]]
-                #     outputs.append(integerized_label)
-                # # transpose gets us to (batch_size, num_labels)
-                # labels = transpose(FloatTensor(outputs), 0, 1)
-                # targets = {"labels": labels}
             elif isinstance(label_keys, str):
                 targets = {"labels": label_encoder.batch_encode(sample[label_keys])}
         except KeyError:
@@ -133,119 +126,3 @@ def single_text_collate_function(sample: list,
             raise Exception("Label encoder found an unknown label.")
 
     return CollatedSample(inputs, targets, ids)
-
-
-def windowed_text_collate_function(sample: list,
-                                    text_key: str,
-                                    label_keys: Union[str,List[str]],
-                                    id_key: str,
-                                    tokenizer: Tokenizer,
-                                    label_encoder: LabelEncoder = None,
-                                    additional_text_cols: List[str] = [],
-                                    prev_sample_size: int=None,
-                                    next_sample_size: int=None,
-                                    concatenate: bool=False,
-                                    evaluate: bool = False) -> CollatedSample:
-    """Function that prepares a sample to input the model, with an optional number of windows text columns
-    that will be used in the model as well.
-
-    Args:
-        sample (list): list of dictionaries, one of which contains the text input column that will be encoded
-        text_key (str): the key of the dictionaries in sample that contain the text to be encoded
-        label_key (str, List[str]): the list of keys in the dictionary in sample that contains the label
-        id_key (str): the id key of the sample with which to uniquely identify it.
-        label_encoder (LabelEncoder, optional): an instance of LabelEncoder. Defaults to None.
-        tokenizer (Tokenizer): some tokenizer to use to encode the text, from the transformers tokenizer class for now
-        additional_text_cols (List[str], optional): other text columns that need to be tokenized. Defaults to [].
-        prev_sample_size (int, optional): number of previous text columns to sample out of those available. Defaults to None, which means all of them
-        next_sample_size (int, optional): number of next text columns to sample out of those available. Defaults to None, which means all of them
-        concatenate (bool, optional): If true, creates a single piece of text with the windowed text_samples, as opposed to one for each text_sample. Defaults to False.
-        evaluate (bool, optional): In training mode, prepares the target from labels. Defaults to False.
-
-    Raises:
-        ValueError: The prev_sample_size > number of prev columns, or next_sample_size > num next columns
-        KeyError: The label key does not exist in the label encoder
-        Exception: An unnknown label is found in the label encoder
-
-    Returns:
-        CollatedSample: tuple of dictionaries with the expected model inputs, target labels, and sample ids
-    """
-
-    inputs = {'tokens': {}, 'lengths': {}}
-    sample = collate_tensors(sample)
-    prev_text_cols = [l for l in sample.keys() if "{}_prev_".format(text_key) in l]
-    next_text_cols = [l for l in sample.keys() if "{}_next_".format(text_key) in l]
-
-    if evaluate: #if eval, we just get the last n previous text_samples and first n next text_samples. every time
-        prev_text_cols.sort(reverse=True)
-        next_text_cols.sort()
-        prev_text_cols = prev_text_cols[-prev_sample_size:]
-        next_text_cols = next_text_cols[:next_sample_size]
-
-    else: #if training, we sample n previous text_samples and n next text_samples, then order them
-        prev_text_cols = _get_sample_list(prev_text_cols, prev_sample_size)
-        next_text_cols = _get_sample_list(next_text_cols, next_sample_size)
-
-        # We want the context in order spoken, ie, prev_3, prev_2, prev_1, but next_1, next_2, next-3
-        prev_text_cols.sort(reverse=True)
-        next_text_cols.sort() 
-
-    try:
-        tokens, lengths = tokenizer.batch_encode(sample[text_key])
-    except KeyError:
-        raise KeyError(
-            "Text key {} does not exist in sample. Sample keys are:\n{}".format(text_key, list(sample.keys())))
-
-    # first get the text_sample column itself
-    tokens, lengths = tokenizer.batch_encode(sample[text_key])
-    inputs['tokens'][text_key] = tokens
-    inputs['lengths'][text_key] = lengths
-
-    # then get all the additional text columns
-    for col in additional_text_cols:
-        tokens, lengths = tokenizer.batch_encode(sample[col])
-        inputs['tokens'][col] = tokens
-        inputs['lengths'][col] = lengths
-
-    # then get all the context columns
-    if concatenate: #if concatenating, we just put them together in the order prev, text, next
-        ordered_text_cols = prev_text_cols + [text_key] + next_text_cols
-        single_text_sample_list = _concatenate_text_samples(sample, ordered_text_cols)
-        tokens, lengths = tokenizer.batch_encode(single_text_sample_list)
-        inputs['tokens'][text_key+"_concatenated_context"] = tokens
-        inputs['lengths'][text_key+"_concatenated_context"] = lengths
-    else:
-        for col in prev_text_cols + next_text_cols:
-            tokens, lengths = tokenizer.batch_encode(sample[col])
-            inputs['tokens'][col] = tokens
-            inputs['lengths'][col] = lengths
-
-    targets = {}
-    ids = {}
-
-    #MULTILABEL
-    if evaluate:
-        ids = {"sample_id_keys": Tensor(sample[id_key])}
-    else:
-        try:
-            if isinstance(label_keys, list):
-                targets = {"labels": label_encoder.batch_encode_multilabel(sample)}
-
-                # outputs = []
-                # for l in label_keys:
-                #     integerized_label = [int(i) for i in sample[l]]
-                #     outputs.append(integerized_label)
-                # # transpose gets us to (batch_size, num_labels)
-                # labels = transpose(FloatTensor(outputs), 0, 1)
-                # targets = {"labels": labels}
-            elif isinstance(label_keys, str):
-                targets = {"labels": label_encoder.batch_encode(sample[label_keys])}
-        except KeyError:
-            raise KeyError(
-                "Label keys {} does not match sample. Sample keys are:\n{}".format(label_keys, list(sample.keys())))
-        except RuntimeError:
-            raise Exception("Label encoder found an unknown label.")
-    
-    return CollatedSample(inputs, targets, ids)
-
-

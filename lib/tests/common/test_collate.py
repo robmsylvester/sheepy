@@ -1,10 +1,9 @@
 import pytest
 import torch
 from torchnlp.utils import collate_tensors
-from lib.src.common.collate import single_text_collate_function, windowed_text_collate_function, _concatenate_text_samples
+from lib.src.common.collate import single_text_collate_function, _concatenate_text_samples
 from lib.src.nlp.tokenizer import Tokenizer
 from lib.src.nlp.label_encoder import LabelEncoder
-from lib.src.data_modules.base_data_module import BaseDataModule as dm
 
 
 @pytest.fixture
@@ -13,12 +12,12 @@ def batch_sample() -> list:
         {
             'text': "first",
             'label': 0,
-            dm.sample_id_col: 1
+            'sample_id': 1
         },
         {
             'text': "second",
             'label': 1,
-            dm.sample_id_col: 2
+            'sample_id': 2
         }
     ]
     return batch
@@ -38,7 +37,7 @@ def windowed_batch_sample() -> list:
             'additional': 'tomato',
             'additional2': 'floop',
             'label': 0,
-            dm.sample_id_col: 1
+            'sample_id': 1
         },
         {
             'text': "fifth",
@@ -51,7 +50,7 @@ def windowed_batch_sample() -> list:
             'additional': 'potato',
             'additional2': 'bloop',
             'label': 1,
-            dm.sample_id_col: 2
+            'sample_id': 2
         }
     ]
     return batch
@@ -65,7 +64,7 @@ def multilabel_batch_sample() -> list:
             'label2': 0,
             'label3': 0,
             'label4': 0,
-            dm.sample_id_col: 1
+            'sample_id': 1
         },
         {
             'text': "second",
@@ -73,7 +72,7 @@ def multilabel_batch_sample() -> list:
             'label2': 1,
             'label3': 0,
             'label4': 1,
-            dm.sample_id_col: 2
+            'sample_id': 2
         }
     ]
     return batch
@@ -96,7 +95,7 @@ def multilabel_windowed_batch_sample() -> list:
             'label2': 0,
             'label3': 0,
             'label4': 0,
-            dm.sample_id_col: 1
+            'sample_id': 1
         },
         {
             'text': "fifth",
@@ -112,7 +111,7 @@ def multilabel_windowed_batch_sample() -> list:
             'label2': 1,
             'label3': 0,
             'label4': 1,
-            dm.sample_id_col: 2
+            'sample_id': 2
         }
     ]
     return batch
@@ -129,7 +128,7 @@ def sample_windowed_batch_sample() -> list:
             'text_next_2': 'sixth',
             'text_next_3': 'seventh',
             'label': 0,
-            dm.sample_id_col: 1
+            'sample_id': 1
         },
         {
             'text': "fifth",
@@ -140,11 +139,10 @@ def sample_windowed_batch_sample() -> list:
             'text_next_2': 'seventh',
             'text_next_3': 'eighth',
             'label': 0,
-            dm.sample_id_col: 2
+            'sample_id': 2
         }
     ]
     return batch
-
 
 @pytest.fixture
 def label_encoder() -> LabelEncoder:
@@ -152,6 +150,12 @@ def label_encoder() -> LabelEncoder:
         [0, 1],
         unknown_label=None)
 
+@pytest.fixture
+def multilabel_label_encoder() -> LabelEncoder:
+    return LabelEncoder(
+        ["label1","label2","label3","label4"],
+        multilabel=True,
+        unknown_label=None)
 
 @pytest.fixture
 def tokenizer() -> Tokenizer:
@@ -190,7 +194,7 @@ def test_single_label_single_text_collate(batch_sample, tokenizer, label_encoder
         batch_sample,
         'text',
         'label',
-        dm.sample_id_col,
+        'sample_id',
         tokenizer,
         label_encoder=label_encoder,
         evaluate=False
@@ -212,14 +216,14 @@ def test_single_label_single_text_collate(batch_sample, tokenizer, label_encoder
     assert torch.all(torch.eq(tensors[2], torch.Tensor([0,1])))
 
 
-def test_multi_label_single_text_collate(multilabel_batch_sample, tokenizer):
+def test_multi_label_single_text_collate(multilabel_batch_sample, tokenizer, multilabel_label_encoder):
     collated = single_text_collate_function(
         multilabel_batch_sample,
         'text',
         ['label1','label2','label3','label4'],
-        dm.sample_id_col,
+        'sample_id',
         tokenizer,
-        label_encoder=None,
+        label_encoder=multilabel_label_encoder,
         evaluate=False
     )
 
@@ -252,344 +256,3 @@ def test_concatenate_text_samples(windowed_batch_sample):
     
     assert concatenated[0] == expected[0]
     assert concatenated[1] == expected[1]
-
-def test_single_label_zero_window_text_collate(windowed_batch_sample, tokenizer, label_encoder):
-    collated = windowed_text_collate_function(
-        windowed_batch_sample,
-        'text',
-        'label',
-        dm.sample_id_col,
-        tokenizer,
-        label_encoder=label_encoder,
-        additional_text_cols = [],
-        prev_sample_size=0,
-        next_sample_size=0,
-        concatenate=False,
-        evaluate=False
-    )
-
-    tensors = collect_tensors(collated)
-
-    assert (len(tensors) == 3) #inputs tokens, input lengths, targets, no ids
-    assert (all(elem.shape[0] == len(windowed_batch_sample) for elem in iter(tensors)))
-
-    #Test tokens match
-    assert torch.all(torch.eq(tensors[0][0], torch.Tensor([101,2959,102])))
-    assert torch.all(torch.eq(tensors[0][1], torch.Tensor([101,3587,102])))
-
-    #Test lengths match
-    assert torch.all(torch.eq(tensors[1], torch.Tensor([3,3])))
-
-    #Test labels match
-    assert torch.all(torch.eq(tensors[2], torch.Tensor([0,1])))
-
-    #why 20? 
-    # 1 length tensor for each text column (9)
-    # 1 token tensor for each text column (9)
-    # 1 label tensor
-
-def test_single_label_concatenated_text_collate(windowed_batch_sample, tokenizer, label_encoder):
-    collated = windowed_text_collate_function(
-        windowed_batch_sample,
-        'text',
-        'label',
-        dm.sample_id_col,
-        tokenizer,
-        label_encoder=label_encoder,
-        additional_text_cols = [],
-        prev_sample_size=3,
-        next_sample_size=3,
-        concatenate=True,
-        evaluate=False
-    )
-
-    keys = collect_keys(collated)
-    tensors = collect_tensors(collated)
-
-    assert ('tokens' in keys)
-    assert ('lengths' in keys)
-
-    expected_tokens, expected_lengths = tokenizer.batch_encode([
-        "fifth",
-        "sixth",
-        "first. second. third! fourth. fifth. sixth. seventh.",
-        "second. third! fourth. fifth. sixth. seventh. eighth."
-    ])
-
-    #why 5? 
-    # 1 length tensor for each text column (2)
-    # 1 token tensor for each text column (2)
-    # 1 label tensor
-    assert (len(tensors) == 5)
-    assert (all(elem.shape[0] == len(windowed_batch_sample) for elem in iter(tensors)))
-
-    #Test tokens match
-    assert torch.all(torch.eq(tensors[0][0], torch.tensor([101,2959,102])))
-    assert torch.all(torch.eq(tensors[0][1], torch.tensor([101,3587,102])))
-    assert torch.all(torch.eq(tensors[1][0], expected_tokens[2]))
-    assert torch.all(torch.eq(tensors[1][1], expected_tokens[3]))
-
-    #Test lengths match
-    assert torch.all(torch.eq(tensors[2], torch.Tensor([3,3])))
-    assert torch.all(torch.eq(tensors[3], torch.Tensor([16,16])))
-
-    #Test labels match
-    assert torch.all(torch.eq(tensors[4], torch.Tensor([0,1])))
-
-
-def test_single_label_no_concatenations_text_collate(windowed_batch_sample, tokenizer, label_encoder):
-    collated = windowed_text_collate_function(
-        windowed_batch_sample,
-        'text',
-        'label',
-        dm.sample_id_col,
-        tokenizer,
-        label_encoder=label_encoder,
-        additional_text_cols = [],
-        prev_sample_size=3,
-        next_sample_size=3,
-        concatenate=False,
-        evaluate=False
-    )
-
-    keys = collect_keys(collated)
-    tensors = collect_tensors(collated)
-
-    assert ('tokens' in keys)
-    assert ('lengths' in keys)
-
-    #why 15? 
-    # 1 length tensor for each text column (7)
-    # 1 token tensor for each text column (7)
-    # 1 label tensor
-    assert (len(tensors) == 15)
-    assert (all(elem.shape[0] == len(windowed_batch_sample) for elem in iter(tensors)))
-
-    #Test tokens match
-    assert torch.all(torch.eq(tensors[0][0], torch.tensor([101,2959,102]))) #text first sample
-    assert torch.all(torch.eq(tensors[0][1], torch.tensor([101,3587,102]))) #text second sample
-    assert torch.all(torch.eq(tensors[1][0], torch.tensor([101,2034,102]))) #prev_3 first sample
-    assert torch.all(torch.eq(tensors[1][1], torch.tensor([101,2117,102]))) #prev_3 second sample
-    assert torch.all(torch.eq(tensors[2][0], torch.tensor([101,2117,102,0]))) #prev_2 first sample with padding
-    assert torch.all(torch.eq(tensors[2][1], torch.tensor([101,2353,999,102]))) #prev_2 second sample with !
-    assert torch.all(torch.eq(tensors[3][0], torch.tensor([101,2353,999,102]))) #prev_1 first sample with !
-    assert torch.all(torch.eq(tensors[3][1], torch.tensor([101,2959,102,0]))) #prev_1 second sample with padding
-    assert torch.all(torch.eq(tensors[4][0], torch.tensor([101,3587,102]))) #next_1 first sample
-    assert torch.all(torch.eq(tensors[4][1], torch.tensor([101,4369,102]))) #next_1 second sample
-    assert torch.all(torch.eq(tensors[5][0], torch.tensor([101,4369,102]))) #next_2 first sample
-    assert torch.all(torch.eq(tensors[5][1], torch.tensor([101,5066,102]))) #next_2 second sample
-    assert torch.all(torch.eq(tensors[6][0], torch.tensor([101,5066,102]))) #next_3 first sample
-    assert torch.all(torch.eq(tensors[6][1], torch.tensor([101,5964,102]))) #next_3 second sample
-
-    #Test lengths match
-    assert torch.all(torch.eq(tensors[7], torch.Tensor([3,3])))
-    assert torch.all(torch.eq(tensors[8], torch.Tensor([3,3])))
-    assert torch.all(torch.eq(tensors[9], torch.Tensor([4,4]))) #The padded one with !
-    assert torch.all(torch.eq(tensors[10], torch.Tensor([4,4]))) #The other padded one
-    assert torch.all(torch.eq(tensors[11], torch.Tensor([3,3])))
-    assert torch.all(torch.eq(tensors[12], torch.Tensor([3,3])))
-    assert torch.all(torch.eq(tensors[13], torch.Tensor([3,3])))
-
-    #Test labels match
-    assert torch.all(torch.eq(tensors[14], torch.Tensor([0,1])))
-
-def test_multi_label_no_concatenations_text_collate(multilabel_windowed_batch_sample, tokenizer):
-    collated = windowed_text_collate_function(
-        multilabel_windowed_batch_sample,
-        'text',
-        ['label1', 'label2', 'label3', 'label4'],
-        dm.sample_id_col,
-        tokenizer,
-        label_encoder=None,
-        additional_text_cols = [],
-        prev_sample_size=3,
-        next_sample_size=3,
-        concatenate=False,
-        evaluate=False
-    )
-
-    keys = collect_keys(collated)
-    tensors = collect_tensors(collated)
-
-    assert ('tokens' in keys)
-    assert ('lengths' in keys)
-
-    #why 15? 
-    # 1 length tensor for each text column (7)
-    # 1 token tensor for each text column (7)
-    # 1 label tensor
-    assert (len(tensors) == 15)
-    assert (all(elem.shape[0] == len(multilabel_windowed_batch_sample) for elem in iter(tensors)))
-
-    #Test tokens match
-    assert torch.all(torch.eq(tensors[0][0], torch.tensor([101,2959,102]))) #text first sample
-    assert torch.all(torch.eq(tensors[0][1], torch.tensor([101,3587,102]))) #text second sample
-    assert torch.all(torch.eq(tensors[1][0], torch.tensor([101,2034,102]))) #prev_3 first sample
-    assert torch.all(torch.eq(tensors[1][1], torch.tensor([101,2117,102]))) #prev_3 second sample
-    assert torch.all(torch.eq(tensors[2][0], torch.tensor([101,2117,102,0]))) #prev_2 first sample with padding
-    assert torch.all(torch.eq(tensors[2][1], torch.tensor([101,2353,999,102]))) #prev_2 second sample with !
-    assert torch.all(torch.eq(tensors[3][0], torch.tensor([101,2353,999,102]))) #prev_1 first sample with !
-    assert torch.all(torch.eq(tensors[3][1], torch.tensor([101,2959,102,0]))) #prev_1 second sample with padding
-    assert torch.all(torch.eq(tensors[4][0], torch.tensor([101,3587,102]))) #next_1 first sample
-    assert torch.all(torch.eq(tensors[4][1], torch.tensor([101,4369,102]))) #next_1 second sample
-    assert torch.all(torch.eq(tensors[5][0], torch.tensor([101,4369,102]))) #next_2 first sample
-    assert torch.all(torch.eq(tensors[5][1], torch.tensor([101,5066,102]))) #next_2 second sample
-    assert torch.all(torch.eq(tensors[6][0], torch.tensor([101,5066,102]))) #next_3 first sample
-    assert torch.all(torch.eq(tensors[6][1], torch.tensor([101,5964,102]))) #next_3 second sample
-
-    #Test lengths match
-    assert torch.all(torch.eq(tensors[7], torch.Tensor([3,3])))
-    assert torch.all(torch.eq(tensors[8], torch.Tensor([3,3])))
-    assert torch.all(torch.eq(tensors[9], torch.Tensor([4,4]))) #The padded one with !
-    assert torch.all(torch.eq(tensors[10], torch.Tensor([4,4]))) #The other padded one
-    assert torch.all(torch.eq(tensors[11], torch.Tensor([3,3])))
-    assert torch.all(torch.eq(tensors[12], torch.Tensor([3,3])))
-    assert torch.all(torch.eq(tensors[13], torch.Tensor([3,3])))
-
-    #Test labels match
-    assert torch.all(torch.eq(tensors[14][0], torch.Tensor([0,0,0,0])))
-    assert torch.all(torch.eq(tensors[14][1], torch.Tensor([0,1,0,1])))
-
-def test_sampled_window_text_collate(sample_windowed_batch_sample, tokenizer, label_encoder):
-
-    num_iterations = 10
-
-    def tensor_equals_one_of_many(a, b_list):
-        for b in b_list:
-            if torch.equal(a,b): return True
-        return False
-
-    accepted_previous_first_sample = [
-        torch.tensor([101,2034,102]), torch.tensor([101,2117,102]), torch.tensor([101,2353,102])
-    ]
-
-    accepted_previous_second_sample = [
-        torch.tensor([101,2117,102]), torch.tensor([101,2353,102]), torch.tensor([101,2959,102])
-    ]
-
-    accepted_next_first_sample = [
-        torch.tensor([101,3587,102]), torch.tensor([101,4369,102]), torch.tensor([101,5066,102])
-    ]
-
-    accepted_next_second_sample = [
-        torch.tensor([101,4369,102]), torch.tensor([101,5066,102]), torch.tensor([101,5964,102])
-    ]
-
-    for _ in range(num_iterations):
-        collated = windowed_text_collate_function(
-            sample_windowed_batch_sample,
-            'text',
-            'label',
-            dm.sample_id_col,
-            tokenizer,
-            label_encoder=label_encoder,
-            additional_text_cols = [],
-            prev_sample_size=1,
-            next_sample_size=1,
-            concatenate=False,
-            evaluate=False
-        )
-
-        tensors = collect_tensors(collated)
-
-        #Test tokens match
-        assert torch.all(torch.eq(tensors[0][0], torch.tensor([101,2959,102])))
-        assert torch.all(torch.eq(tensors[0][1], torch.tensor([101,3587,102])))
-        assert tensor_equals_one_of_many(tensors[1][0], accepted_previous_first_sample)
-        assert tensor_equals_one_of_many(tensors[1][1], accepted_previous_second_sample)
-        assert tensor_equals_one_of_many(tensors[2][0], accepted_next_first_sample)
-        assert tensor_equals_one_of_many(tensors[2][1], accepted_next_second_sample)
-
-def test_evaluation_sampled_window_text_collate(sample_windowed_batch_sample, tokenizer, label_encoder):
-
-    num_iterations = 10
-
-    for _ in range(num_iterations):
-        collated = windowed_text_collate_function(
-            sample_windowed_batch_sample,
-            'text',
-            'label',
-            dm.sample_id_col,
-            tokenizer,
-            label_encoder=label_encoder,
-            additional_text_cols = [],
-            prev_sample_size=2,
-            next_sample_size=2,
-            concatenate=False,
-            evaluate=True
-        )
-
-        tensors = collect_tensors(collated)
-
-        assert (len(tensors) == 11)
-        assert (all(elem.shape[0] == len(sample_windowed_batch_sample) for elem in iter(tensors)))
-
-        #Test tokens match
-        assert torch.all(torch.eq(tensors[0][0], torch.tensor([101,2959,102]))) #sample 1 text                
-        assert torch.all(torch.eq(tensors[0][1], torch.tensor([101,3587,102]))) #sample 2 text  
-        assert torch.all(torch.eq(tensors[1][0], torch.tensor([101,2117,102]))) #prev 2 sample 1 "second"
-        assert torch.all(torch.eq(tensors[1][1], torch.tensor([101,2353,102]))) #prev 2 sample 2 "third"
-        assert torch.all(torch.eq(tensors[2][0], torch.tensor([101,2353,102]))) #prev 1 sample 1 "third"
-        assert torch.all(torch.eq(tensors[2][1], torch.tensor([101,2959,102]))) #prev 1 sample 2 "fourth"
-        assert torch.all(torch.eq(tensors[3][0], torch.tensor([101,3587,102]))) #next 1 sample 1 "fifth"
-        assert torch.all(torch.eq(tensors[3][1], torch.tensor([101,4369,102]))) #next 1 sample 2 "sixth"
-        assert torch.all(torch.eq(tensors[4][0], torch.tensor([101,4369,102]))) #next 2 sample 1 "sixth"
-        assert torch.all(torch.eq(tensors[4][1], torch.tensor([101,5066,102]))) #next 2 sample 2 "seventh"
-
-        #Test lengths match
-        assert torch.all(torch.eq(tensors[5], torch.Tensor([3,3])))
-        assert torch.all(torch.eq(tensors[6], torch.Tensor([3,3])))
-        assert torch.all(torch.eq(tensors[7], torch.Tensor([3,3])))
-        assert torch.all(torch.eq(tensors[8], torch.Tensor([3,3])))
-        assert torch.all(torch.eq(tensors[9], torch.Tensor([3,3])))
-
-        #Test labels match, but there are no labels!
-
-        #Test sample ids match
-        assert torch.all(torch.eq(tensors[10], torch.Tensor([1,2])))
-
-def test_evaluation_concatenated_sampled_window_text_collate(sample_windowed_batch_sample, tokenizer, label_encoder):
-
-    num_iterations = 10
-
-    expected_tokens, _ = tokenizer.batch_encode([
-        "fourth",
-        "fifth",
-        "second. third. fourth. fifth. sixth.",
-        "third. fourth. fifth. sixth. seventh."
-    ])
-
-    for _ in range(num_iterations):
-        collated = windowed_text_collate_function(
-            sample_windowed_batch_sample,
-            'text',
-            'label',
-            dm.sample_id_col,
-            tokenizer,
-            label_encoder=label_encoder,
-            additional_text_cols = [],
-            prev_sample_size=2,
-            next_sample_size=2,
-            concatenate=True,
-            evaluate=True
-        )
-
-        tensors = collect_tensors(collated)
-
-        assert (len(tensors) == 5)
-        assert (all(elem.shape[0] == len(sample_windowed_batch_sample) for elem in iter(tensors)))
-
-        #Test tokens match
-        assert torch.all(torch.eq(tensors[0][0], torch.tensor([101,2959,102]))) #sample text 1
-        assert torch.all(torch.eq(tensors[0][1], torch.tensor([101,3587,102]))) #sample text 2
-        assert torch.all(torch.eq(tensors[1][0], expected_tokens[2])) #concatenated sample 1
-        assert torch.all(torch.eq(tensors[1][1], expected_tokens[3])) #concatenated sample 2
-
-        #Test lengths match
-        assert torch.all(torch.eq(tensors[2], torch.Tensor([3,3])))
-        assert torch.all(torch.eq(tensors[3], torch.Tensor([12,12])))
-
-        #Test labels match, but there are no labels!
-
-        #Test sample ids match
-        assert torch.all(torch.eq(tensors[4], torch.Tensor([1,2])))
