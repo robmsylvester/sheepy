@@ -195,10 +195,8 @@ class BaseCSVDataModule(BaseDataModule):
                 self._test_dataset.shape))
 
     def _set_class_sizes(self):
-        self.train_class_sizes = self._train_dataset[self.label_col].value_counts(
-        ).to_dict()
-        self.logger.info("\nLabel Count (Train):\n{}".format(
-            self.train_class_sizes))
+        self.train_class_sizes = self._train_dataset[self.label_col].value_counts().to_dict()
+        self.logger.info("\nLabel Count (Train):\n{}".format(self.train_class_sizes))
 
     @classmethod
     def add_model_specific_args(cls, parser: argparse.ArgumentParser) -> argparse.ArgumentParser:

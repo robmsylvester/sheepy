@@ -99,9 +99,11 @@ class Experiment():
             model_data = data_module_cls(model_args)
             model_data.load_data_module()
 
-            if hasattr(self.data, 'label_encoder'):
-                self.data.label_encoder = model_data.label_encoder
-                self.data.train_class_sizes = model_data.train_class_sizes
+            self.data.label_encoder = model_data.label_encoder
+            self.data.train_class_sizes = model_data.train_class_sizes
+            
+            if hasattr(model_data, 'pos_weights'):
+                self.data.pos_weights = model_data.pos_weights
 
             # Then the model from the checkpoint. Note that in pytl v1 the 'checkpoints' subdirectory was removed
             checkpoints = [os.path.join(self.args.pretrained_dir, f) for f in os.listdir(

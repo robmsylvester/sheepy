@@ -1,5 +1,6 @@
 import argparse
 from lib.src.data_modules.base_data_module import BaseDataModule
+from typing import List
 
 class MultiLabelBaseDataModule(BaseDataModule):
     """
@@ -29,6 +30,7 @@ class MultiLabelBaseDataModule(BaseDataModule):
             self.args.hparams["label"]) > 1, "there must be more than one label in the list for the multi label module to be used"
         assert self.args.hparams["num_labels"] == len(self.args.hparams["label"]), "config sees {} labels but num_labels set to {}".format(
             len(self.args.hparams["label"]), self.args.hparams["num_labels"])
+    
 
     @classmethod
     def add_model_specific_args(cls, parser: argparse.ArgumentParser) -> argparse.ArgumentParser:

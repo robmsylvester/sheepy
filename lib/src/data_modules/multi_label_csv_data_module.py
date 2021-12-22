@@ -1,9 +1,11 @@
 import argparse
 import pandas as pd
-from typing import Any
+from typing import Any, List
+import os
+import pickle
 from lib.src.data_modules.base_csv_data_module import BaseCSVDataModule
 from lib.src.nlp.label_encoder import LabelEncoder
-from lib.src.common.df_ops import read_csv_text_classifier, split_dataframes, resample_multilabel_positives
+from lib.src.common.df_ops import resample_multilabel_positives
 
 
 class MultiLabelCSVDataModule(BaseCSVDataModule):
@@ -62,6 +64,54 @@ class MultiLabelCSVDataModule(BaseCSVDataModule):
     
     def _maybe_map_labels(self):
         pass
+    
+    def _load_text_from_text_file(self, filepath: str) -> List[dict]:
+        """[summary]
+
+        Args:
+            filepath (str): [description]
+
+        Returns:
+            List[dict]: [description]
+        """
+        prepared_inputs = []
+        with open(filepath, "r") as f:
+            for idx, line in enumerate(f):
+                line = line.rstrip()
+                prepared_input = {k: None for k in self.label_col}
+                prepared_input[self.text_col] = line
+                prepared_input[self.sample_id_col] = idx
+                prepared_inputs.append(prepared_input)
+        return prepared_inputs
+    
+    def save_data_module(self, out_path: str = None):
+        """
+        Pickles the module to a specified output path.
+
+        Args:
+            out_path - str, where to save the data module. You should probably leave this as None and
+            rely on default behavior.
+        """
+        if out_path is None:
+            out_path = os.path.join(self.args.output_dir, "data.module")
+        module_dict = {
+            'class_sizes': self.train_class_sizes,
+            'label_encoder': self.label_encoder,
+            'pos_weights': self.pos_weights,
+        }
+        with open(out_path, 'wb') as fp:
+            pickle.dump(module_dict, fp)
+
+    def load_data_module(self, in_path: str = None):
+        if in_path is None:
+            in_path = os.path.join(self.args.output_dir, "data.module")
+        with open(in_path, 'rb') as fp:
+            module_dict = pickle.load(fp)
+            self.train_class_sizes = module_dict['class_sizes']
+            self.label_encoder = module_dict['label_encoder']
+            self.pos_weights = module_dict['pos_weights']
+        assert (self.label_encoder.vocab_size ==
+                self.args.hparams["num_labels"])
 
     # # TODO - REPLACE
     # def prepare_data(self):
