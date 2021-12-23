@@ -64,11 +64,12 @@ class ToxicCommentDataModule(MultiLabelCSVDataModule):
             _, _, self._test_dataset = split_dataframes(self.test_dataframes, train_ratio=0., validation_ratio=0., test_ratio=1., shuffle=True)
 
             self._train_dataset = self._resample_positive_rows(self._train_dataset)
-            self.logger.info("Dataset split complehow check self te. (Total) Dataset Shapes:\n\tTrain: {}\nV\talidation: {}\n\tTest: {}".format(
+            self.logger.info("Dataset split complete. (Total) Dataset Shapes:\n\tTrain: {}\n\tValidation: {}\n\tTest: {}".format(
                 self._train_dataset.shape, self._val_dataset.shape, self._test_dataset.shape))
             
             self._test_dataset[self.sample_id_col] = range(
                 len(self._test_dataset))
+
         else: #evaluating
             if self._test_dataset is None:
                 for f in os.listdir(self.args.data_dir):

@@ -63,7 +63,7 @@ class MultiLabelBaseClassifier(BaseClassifier):
             model_out = self.forward(**model_input)
             logits = model_out["logits"].numpy()
 
-            predictions = (logits >= 0.5).astype(int) #TODO - arg out this default 0.5
+            predictions = (logits >= 0.0).astype(int) #TODO - arg out this default 0.5
 
             predicted_labels = {label: predictions[label_idx] for label_idx, label in enumerate(
                 self.args.hparams['label'])}
@@ -167,8 +167,7 @@ class MultiLabelBaseClassifier(BaseClassifier):
         loss_val = self.loss(model_out, targets)
         labels = targets["labels"]
         logits = model_out["logits"]
-        sigmoid_logits = torch.sigmoid(logits)
-        preds = (sigmoid_logits >= 0.5).float()  # should use a threshold argument
+        preds = (logits >= 0.0).float()  # should use a threshold argument
         val_acc = torch.sum(labels == preds).item() / (len(labels) * 1.0)
         val_acc = torch.tensor(val_acc)
 
@@ -178,7 +177,7 @@ class MultiLabelBaseClassifier(BaseClassifier):
         output = OrderedDict({
             loss_key: loss_val,
             acc_key: val_acc,
-            "logits": sigmoid_logits,
+            "logits": logits,
             "pred": preds,
             "target": labels
         })
@@ -198,9 +197,8 @@ class MultiLabelBaseClassifier(BaseClassifier):
         cms = {}
         for label_idx, label in enumerate(self.data.label_encoder.vocab):
             logits = torch.cat([output['logits'][:, label_idx]
-                            for output in outputs])
-            sigmoid_logits = torch.sigmoid(logits).detach().cpu().numpy()
-            pred = (sigmoid_logits >= 0.5).astype(int) #TODO - arg out this default 0.5
+                            for output in outputs]).detach().cpu().numpy()
+            pred = (logits >= 0.0).astype(int) #TODO - arg out this default
             trg = torch.cat([output['target'][:, label_idx]
                                 for output in outputs]).detach().cpu().numpy()
 
