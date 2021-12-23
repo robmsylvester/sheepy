@@ -48,8 +48,10 @@ class MultiLabelCSVDataModule(BaseCSVDataModule):
             pd.DataFrame: Dataframe with resamples rows added
         """
         resample_rate = self.args.hparams.get('positive_resample_rate', 1)
-
-        if isinstance(resample_rate, int):
+        if isinstance(resample_rate, dict):
+            self.logger.info("Resampling multilabel positives...")
+            return resample_multilabel_positives(df, resample_rate, positive_label)
+        elif isinstance(resample_rate, int):
             resample_rate = {k: resample_rate for k in self.label_col}
             
             all_ones= all(v == 1 for v in resample_rate.values())

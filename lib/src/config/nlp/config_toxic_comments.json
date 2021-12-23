@@ -13,7 +13,7 @@
         "tracked_metrics": [
             {
                 "name": "accuracy",
-                "average": "macro"
+                "average": "weighted"
             },
             {
                 "name": "auroc",
@@ -21,15 +21,15 @@
             },
             {
                 "name": "f1",
-                "average": "macro"
+                "average": "weighted"
             },
             {
                 "name": "precision",
-                "average": "macro"
+                "average": "weighted"
             },
             {
                 "name": "recall",
-                "average": "macro"
+                "average": "weighted"
             }
         ]
     },
@@ -44,12 +44,17 @@
         ],
         "text": "comment_text",
         "encoder_model": "google/bert_uncased_L-2_H-128_A-2",
-        "positive_resample_rate" : 1,
+        "positive_resample_rate" : {
+            "toxic": 2,
+            "severe_toxic": 30,
+            "obscene": 8,
+            "threat": 100,
+            "insult": 8,
+            "identity_hate": 30
+        },
         "disable_weight_scale": false,
         "nr_frozen_epochs": 1,
         "loader_workers": 8,
-        "n_prev_text_samples": 0,
-        "n_next_text_samples": 0,
         "context_labels": "remove",
         "batch_size": 32,
         "hidden_layer_sizes": [128, 128, 32],
