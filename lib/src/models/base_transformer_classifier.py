@@ -1,12 +1,7 @@
 import torch
-import os
 import argparse
-import numpy as np
-import wandb
-import json
-from tqdm import tqdm
 from pytorch_lightning import LightningDataModule
-from torch import nn, optim
+from torch import optim
 from argparse import Namespace
 from torchnlp.utils import lengths_to_mask
 from lib.src.nlp.tokenizer import mask_fill
