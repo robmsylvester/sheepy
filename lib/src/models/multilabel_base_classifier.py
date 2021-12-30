@@ -47,52 +47,6 @@ class MultiLabelBaseClassifier(BaseClassifier):
         """
         return self._loss(predictions["logits"].float(), targets["labels"].float())
     
-    # TODO: allow batch prediction?
-    def predict(self, data_module: LightningDataModule, sample: dict) -> dict:
-        """ Predict function.
-        Args:
-            data_module: module with method prepare_sample()
-            Sample: Dictionary with correct key that specifies text column and value as text we want to classify
-        Returns:
-            Dictionary with the input text and the predicted labels
-        """
-
-        if self.training:
-            self.eval()
-
-        with torch.no_grad():
-            model_input, _ = data_module.prepare_sample([sample])
-            model_out = self.forward(**model_input)
-            logits = model_out["logits"].numpy()
-
-            predictions = (logits >= 0.0).astype(int) #TODO - arg out this default 0.5
-
-            predicted_labels = {label: predictions[label_idx] for label_idx, label in enumerate(
-                self.args.hparams['label'])}
-            sample["predicted_labels"] = predicted_labels
-
-        return sample
-
-    def predict_prob(self, data_module: LightningDataModule, sample: dict) -> dict:
-        """
-        Predict function that returns probability
-
-        Args:
-            data_module: module with method prepare_sample()
-            sample: Dictionary with correct key that specifies text column and value as text we want to classify
-        Returns:
-            Dictionary with the input text and the predicted sigmoid label probability
-        """
-
-        if self.training:
-            self.eval()
-
-        with torch.no_grad():
-            model_input, _ = data_module.prepare_sample([sample])
-            model_out = self.forward(**model_input)
-            logits = model_out["logits"].numpy()
-            return logits
-
     def training_epoch_end(self, outputs: List) -> dict:
         """Runs pytorch lightning validation_epoch_end_function. For more details, see
         _run_epoch_end_metrics

@@ -2,8 +2,6 @@ import torch
 import argparse
 import pytorch_lightning as pl
 import wandb
-import numpy as np
-from torch.nn import functional as F
 from typing import List
 from pytorch_lightning import LightningDataModule
 from collections import OrderedDict
@@ -227,55 +225,6 @@ class BaseClassifier(pl.LightningModule):
         cm = self._create_confusion_matrix(outputs, name="Test Epoch Confusion Matrix")
         self.logger.experiment.log({"test/epoch_confusion_matrix": cm})
         return None
-
-    #TODO - does this ever get called? delete it
-    def predict(self, data_module: LightningDataModule, sample: dict) -> dict:
-        """Evaluation function
-
-        Args:
-            data_module (LightningDataModule): module with method prepare_sample()
-            sample (dict): Dictionary with correct key that specifies text column and value as text we want to classify
-
-        Returns:
-            dict: Dictionary with the input text and the predicted label.
-        """
-
-        if self.training:
-            self.eval()
-
-        with torch.no_grad():
-            model_input, _ = data_module.prepare_sample([sample])
-            model_out = self.forward(**model_input)
-            logits = model_out["logits"].numpy()
-
-            predicted_labels = [
-                self.data.label_encoder.index_to_token[prediction] #TODO - this wont work
-                for prediction in np.argmax(logits, axis=1)
-            ]
-            sample["predicted_label"] = predicted_labels[0]
-
-        return sample
-    
-    #TODO - does this ever get called? delete it
-    def predict_prob(self, data_module: LightningDataModule, sample: dict) -> dict:
-        """
-        Predict function that returns probability
-
-        Args:
-            data_module: module with method prepare_sample()
-            Sample: Dictionary with correct key that specifies text column and value as text we want to classify
-        Returns:
-            Dictionary with the input text and the predicted softmax label probability
-        """
-
-        if self.training:
-            self.eval()
-
-        with torch.no_grad():
-            model_input, _ = data_module.prepare_sample([sample])
-            model_out = self.forward(**model_input)
-            softmax_p = F.softmax(model_out["logits"], axis=1).numpy()
-            return softmax_p[0]
     
     def predict_step(self, batch: tuple, batch_idx: int, dataloader_idx: int=0):
         """PyTorch Lightning function to do raw batch prediction
