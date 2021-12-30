@@ -1,6 +1,8 @@
 import argparse
 import torch
 import wandb
+import math
+from numpy import vectorize
 from typing import List, Dict
 from collections import OrderedDict
 from pytorch_lightning import LightningDataModule
@@ -137,12 +139,20 @@ class MultiLabelBaseClassifier(BaseClassifier):
     
     #NOTE - PyTorch Lightning 1.5.1 still uses this on_ prefix for predict_epoch_end, but this may change soon. see here: https://github.com/PyTorchLightning/pytorch-lightning/issues/9380
     def on_predict_epoch_end(self, outputs: List) -> Dict:
+
+        def sigmoid(x):
+            return 1 / (1 + math.exp(-x))
+
+        # define vectorized sigmoid
+        sigmoid_v = vectorize(sigmoid)
+
         if self.live_eval_mode:
             prediction_logits = outputs[0][0]["logits"].cpu().squeeze()
+            sigmoid_logits = sigmoid_v(prediction_logits)
             output_str = "\nPrediction:\n"
             for label_idx, label in enumerate(self.data.label_encoder.vocab):
-                output_str += "\t{}:{}\n".format(label, prediction_logits[label_idx])
-            self.logger.info(output_str)
+                output_str += "\t{}:{}\n".format(label, sigmoid_logits[label_idx])
+            print(output_str)
         else:
             self.data._write_predictions(outputs[0])
         return None

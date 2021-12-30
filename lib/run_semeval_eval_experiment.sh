@@ -18,5 +18,5 @@ python -m src.main \
     --output_key $OUTPUT_KEY \
     --time $NOW \
     --evaluate \
-    --evaluate_batch_file $EVAL_BATCH \
+    --evaluate_live \
     --config $CONFIG \

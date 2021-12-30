@@ -313,7 +313,7 @@ class BaseClassifier(pl.LightningModule):
             output_str = "\nPrediction:\n"
             for label_idx, label in enumerate(self.data.label_encoder.vocab):
                 output_str += "\t{}:{}\n".format(label, prediction_softmax[label_idx])
-            self.logger.info(output_str)
+            print(output_str)
         else:
             self.data._write_predictions(outputs[0])
         return None

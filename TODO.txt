@@ -25,7 +25,7 @@
 26. output_dir should become model_dir
 27. output_key probably can go
 28. replace nlp with "examples" in config dir
-29. maybe lose the windowed stuff
+29. done
 30. add tests for label encoder multilabel
 31. tweet sentiment data module updated / removed
 32. prepare_data really needs to just be download code

@@ -85,6 +85,13 @@ class MultiLabelCSVDataModule(BaseCSVDataModule):
                 prepared_inputs.append(prepared_input)
         return prepared_inputs
     
+    def _load_text_from_raw_input(self) -> List[dict]:
+        sample_text = input("Enter sample text. (Press Ctrl+C to exit)\n")
+        prepared_input = {self.text_col: sample_text, self.sample_id_col: 0}
+        for col in self.label_col:
+            prepared_input[col] = None
+        return [prepared_input]
+    
     def save_data_module(self, out_path: str = None):
         """
         Pickles the module to a specified output path.
