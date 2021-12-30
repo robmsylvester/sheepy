@@ -24,10 +24,10 @@
 25. unknown_index arg in config should probably become an unknown_label string
 26. output_dir should become model_dir
 27. output_key probably can go
-28. replace nlp with "examples" in config dir
+28. done
 29. done
 30. add tests for label encoder multilabel
-31. tweet sentiment data module updated / removed
+31. done
 32. prepare_data really needs to just be download code
 33. done
 34. setup() with multilabel and the example data modules needs to be refactored. lots of reusable code
