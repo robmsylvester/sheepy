@@ -13,7 +13,7 @@
 14. done
 15. done
 16. done
-17. dont default call setup() test stage in predict()
+17. done
 18. done
 19. weights and biases turn off in eval mode?
 20. done

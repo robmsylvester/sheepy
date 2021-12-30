@@ -1,6 +1,9 @@
 import os
 import argparse
 import pandas as pd
+import boto3
+import botocore
+from lib.src.common.s3_ops import download_resource
 from lib.src.common.df_ops import split_dataframes
 from lib.src.data_modules.multi_label_csv_data_module import MultiLabelCSVDataModule
 
@@ -29,21 +32,37 @@ class ToxicCommentDataModule(MultiLabelCSVDataModule):
         Args:
             stage ([type], optional): [description]. Defaults to None.
         """
+        train_dst = os.path.join(self.args.data_dir, "train.csv")
+        test_dst = os.path.join(self.args.data_dir, "test_filtered.csv")
+        train_sample_dst = os.path.join(self.args.data_dir, "train_sample.csv")
+        test_sample_dst = os.path.join(self.args.data_dir, "test_filtered_sample.csv")
+
         if self.evaluate:
             return
         
         if not os.path.exists(self.args.data_dir):
             os.makedirs(self.args.data_dir)
         
-        if not os.path.exists(os.path.join(self.args.data_dir, "train.csv")):
-            #TODO - add download code
+        if not os.path.exists(train_dst):
             self.logger.info("Downloading train.csv")
-            raise NotImplementedError("Add public dataset link")
+            KEY = 'datasets/toxic_comments/train.csv'
+            _ = download_resource(KEY, train_dst)
 
-        if not os.path.exists(os.path.join(self.args.data_dir, "test_filtered.csv")):
-            #TODO - add download code
+        if not os.path.exists(test_dst):
             self.logger.info("Downloading test_filtered.csv")
-            raise NotImplementedError("Add public dataset link")
+            KEY = 'datasets/toxic_comments/test_filtered.csv'
+            _ = download_resource(KEY, test_dst)
+        
+        if not os.path.exists(train_dst):
+            self.logger.info("Downloading train_sample.csv")
+            KEY = 'datasets/toxic_comments/train_sample.csv'
+            _ = download_resource(KEY, train_sample_dst)
+
+        if not os.path.exists(test_dst):
+            self.logger.info("Downloading test_filtered_sample.csv")
+            KEY = 'datasets/toxic_comments/test_filtered_sample.csv'
+            _ = download_resource(KEY, test_sample_dst)
+        
 
     def setup(self, stage=None):
         """[summary]

@@ -34,8 +34,8 @@ class BaseCSVDataModule(BaseDataModule):
             return
         if hasattr(self.args, 'data_dir'):
             if not os.path.exists(self.args.data_dir):
-                raise ValueError("The passed directory for data_dir does not exist: {}".format(self.args.data_dir))
-            self.logger.info("Using single filesystem data location {}".format(self.args.data_dir))
+                self.logger.info("Creating new data directory at {}".format(self.args.data_dir))
+                os.makedirs(self.args.data_dir)
         else:
             if not hasattr(self.args, 'train_data_dir') or not os.path.exists(self.args.train_data_dir):
                 raise ValueError("The passed directory for train_data_dir does not exist: {}".format(self.args.train_data_dir))
