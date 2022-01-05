@@ -73,7 +73,7 @@
         "method": "bayes",
         "metric": {
             "name": "val/AUROC",
-            "goal": "max"
+            "goal": "maximize"
         },
         "parameters": {
             "learning_rate": {

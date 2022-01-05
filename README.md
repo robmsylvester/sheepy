@@ -33,7 +33,8 @@ There are demo scripts that can be used to showcase the framework.
 2. `./run_semeval_eval_experiment.sh` will run prediction experiments, either in batches or live via the command line, on your trained model.
 
 ### Multilabel Classification
-1. Coming very soon
+1. `./run_toxic_train_experiment.sh` will run train/tune experiments depending on shell args for the multilabel toxic comment classification task.
+2. `./run_toxic_eval_experiment.sh` will run prediction experiments, either in batches or live via the command line, on your trained model.
 
 ### Tests
 `./run_tests.sh` will run tests.
@@ -80,8 +81,7 @@ This mode is used for prediction. It makes use of predict data loaders in pytorc
 whose results are written to disk, or a live evaluation whose results are sent back to the console in a REPL shell.
 
 ### Tuning
-This mode is used for hyperparameter tuning. It makes use of weights and biases and the config sweep JSON to run a specific optimization technique
-and report back the best results
+This mode is used for hyperparameter tuning. It makes use of weights and biases and the config sweep JSON to run a specific optimization technique and report back the best results. Currently the bugs are still being worked out here, but this should be available soon.
 
 ## Using The Framework For New Experiments/Datasets
 To use the framework yourself on your own dataset, you'll need to.
