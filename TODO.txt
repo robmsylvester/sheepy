@@ -28,12 +28,12 @@
 29. done
 30. add tests for label encoder multilabel
 31. done
-32. prepare_data really needs to just be download code
+32. done
 33. done
-34. setup() with multilabel and the example data modules needs to be refactored. lots of reusable code
+34. done
 35. confusion matrices should become torchmetrics confusion matrix, and go in the classification_metrics class
 36. metrics with None get pytorch_lightning.utilities.exceptions.MisconfigurationException:. probably need to build out individual metrics for each in that case.
 37. multiclass argument on torchmetrics should be set for the metrics that have this argument
-38. put datasets on s3 and adjust prepare_data functions to load them there
+38. done
 37. done
 38. done

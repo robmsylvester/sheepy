@@ -1,10 +1,11 @@
 import argparse
-from typing import Optional, List
+from typing import List
 import pandas as pd
 import os
 from lib.src.data_modules.base_csv_data_module import BaseCSVDataModule
 from lib.src.common.collate import single_text_collate_function, CollatedSample
 from lib.src.common.df_ops import read_csv_text_classifier
+from lib.src.common.s3_ops import download_resource
 
 class SemEvalSentimentDataModule(BaseCSVDataModule):
     """
@@ -14,7 +15,47 @@ class SemEvalSentimentDataModule(BaseCSVDataModule):
 
     def __init__(self, args):
         super().__init__(args)
-        self.semeval_web_link = "https://www.kaggle.com/azzouza2018/semevaldatadets/download"
+        self.all_dataframes, self.train_dataframes, self.val_dataframes, self.test_dataframes = None, None, None, None
+    
+    def prepare_data(self, stage: str=None):
+        """[summary]
+
+        Args:
+            stage (str, optional): [description]. Defaults to None.
+        """
+
+        if self.evaluate:
+            return
+
+        if not os.path.isfile(self.args.train_data_dir) or not self.args.train_data_dir.endswith(".csv"):
+            self.logger.info("Downloading semeval train data")
+            KEY = 'datasets/semeval/semeval-2017-train.csv'
+            _ = download_resource(KEY, self.args.train_data_dir)
+
+        if not os.path.isfile(self.args.val_data_dir) or not self.args.val_data_dir.endswith(".csv"):
+            self.logger.info("Downloading semeval val data")
+            KEY = 'datasets/semeval/semeval-2017-val.csv'
+            _ = download_resource(KEY, self.args.val_data_dir)
+
+        if not os.path.isfile(self.args.test_data_dir) or not self.args.test_data_dir.endswith(".csv"):
+            self.logger.info("Downloading semeval test data")
+            KEY = 'datasets/semeval/semeval-2017-test.csv'
+            _ = download_resource(KEY, self.args.test_data_dir)
+    
+    def setup(self, stage: str=None):
+        """[summary]
+
+        Args:
+            stage (str, optional): [description]. Defaults to None.
+        """
+        # self.all_dataframes, self.train_dataframes, self.val_dataframes, self.test_dataframes = None, None, None, None
+        # if hasattr(self.args, 'data_dir'): #A single directory is passed with all the data
+        #     self.all_dataframes = self._read_csv_directory(self.args.data_dir)
+        self.train_dataframes = self._read_csv_directory(self.args.train_data_dir)
+        self.val_dataframes = self._read_csv_directory(self.args.val_data_dir)
+        self.test_dataframes = self._read_csv_directory(self.args.test_data_dir)
+        self._train_dataset, self._val_dataset, self._test_dataset = self.split_dataframes(train_dataframes=self.train_dataframes, val_dataframes=self.val_dataframes, test_dataframes=self.test_dataframes, stage=stage)
+
 
     def _read_csv_directory(self, csv_path: str) -> List[pd.DataFrame]:
         """Given a directory of csv files, or a single csv file, return a list of pandas dataframes containing

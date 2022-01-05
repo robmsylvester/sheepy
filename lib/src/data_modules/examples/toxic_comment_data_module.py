@@ -1,8 +1,6 @@
 import os
 import argparse
 import pandas as pd
-import boto3
-import botocore
 from lib.src.common.s3_ops import download_resource
 from lib.src.common.df_ops import split_dataframes
 from lib.src.data_modules.multi_label_csv_data_module import MultiLabelCSVDataModule

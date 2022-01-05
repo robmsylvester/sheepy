@@ -205,6 +205,9 @@ def map_labels(df: pd.DataFrame, label_col: str, label_map: Dict) -> pd.DataFram
     Returns:
         pd.DataFrame: [description]
     """
+    print(df)
+    print(label_col)
+    print(label_map)
     df[label_col] = df[label_col].map(label_map)
     return df
 

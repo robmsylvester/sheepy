@@ -1,10 +1,10 @@
 import argparse
 import pandas as pd
 import os
-import requests
-import zipfile
 from lib.src.data_modules.base_csv_data_module import BaseCSVDataModule
 from lib.src.common.collate import single_text_collate_function, CollatedSample
+from lib.src.common.s3_ops import download_resource
+
 
 class SmsSpamDataModule(BaseCSVDataModule):
     """
@@ -14,6 +14,7 @@ class SmsSpamDataModule(BaseCSVDataModule):
 
     def __init__(self, args):
         super().__init__(args)
+        self.all_dataframes, self.train_dataframes, self.val_dataframes, self.test_dataframes = None, None, None, None
     
     def _read_dataset(self) -> pd.DataFrame:
         """Reads the dataset file that contains all the SMS spam, and returns a list of tuples
@@ -47,41 +48,43 @@ class SmsSpamDataModule(BaseCSVDataModule):
                 dataset = dataset.append({self.text_col: text}, ignore_index=True)
         return dataset
 
-    def prepare_data(self):
-        "Downloads the data if it doesn't exist. Unzips it, and deletes the zip file. Reads the data file"
+    def prepare_data(self, stage: str=None):
+        """[summary]
+
+        Args:
+            stage (str, optional): [description]. Defaults to None.
+        """
         if self.evaluate:
-            self.logger.info("Reading evaluation dataset directory {}".format(self.args.data_dir))
-            self.all_dataframes = []
-            for f in os.listdir(self.args.data_dir):
-                if f.endswith(".txt"):
-                    self.all_dataframes.append(self._read_evaluation_file(os.path.join(self.args.data_dir, f)))
             return
         
         if not os.path.exists(self.args.data_dir):
             os.makedirs(self.args.data_dir)
         
         if not os.path.exists(os.path.join(self.args.data_dir, "SMSSpamCollection")):
-            #Download
             self.logger.info("Downloading SMS Spam Dataset")
+            KEY = 'datasets/spam/SMSSpamCollection'
+            dst = os.path.join(self.args.data_dir, "SMSSpamCollection")
+            _ = download_resource(KEY, dst)
 
-            url = "https://archive.ics.uci.edu/ml/machine-learning-databases/00228/smsspamcollection.zip"
-            r = requests.get(url, allow_redirects=True)
-
-            #Unzip
-            self.logger.info("Unzipping SMS Spam Dataset")
-            zip_dataset = "smsspamcollection.zip"
-            open(zip_dataset, 'wb').write(r.content)
-            with zipfile.ZipFile(zip_dataset, 'r') as zip_ref:
-                zip_ref.extractall(self.args.data_dir)
-            
-            #Clean
-            os.remove(zip_dataset)
-            self.logger.info("Finished extracting dataset")
-        
         assert os.path.exists(os.path.join(self.args.data_dir, "SMSSpamCollection")), "Failed to find SMSSpamCollection in data_dir {}".format(self.args.data_dir)
 
-        self.logger.info("Reading dataset...")
-        self.all_dataframes = [self._read_dataset()]
+    def setup(self, stage: str=None):
+        """[summary]
+
+        Args:
+            stage (str, optional): [description]. Defaults to None.
+        """
+        if self.evaluate:
+            self.logger.info("Reading evaluation dataset directory {}".format(self.args.data_dir))
+            self.all_dataframes = []
+            for f in os.listdir(self.args.data_dir):
+                if f.endswith(".txt"):
+                    self.all_dataframes.append(self._read_evaluation_file(os.path.join(self.args.data_dir, f)))
+        else:
+            self.logger.info("Reading dataset...")
+            self.all_dataframes = [self._read_dataset()]
+        
+        self._train_dataset, self._val_dataset, self._test_dataset = self.split_dataframes(all_dataframes=self.all_dataframes, stage=stage)
 
     def prepare_sample(self, sample: list) -> CollatedSample:
         """

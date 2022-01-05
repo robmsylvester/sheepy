@@ -106,20 +106,6 @@ class BaseCSVDataModule(BaseDataModule):
                 additional_cols=self.args.x_cols)
             out_dfs.append(df)
         return out_dfs
-
-    def prepare_data(self):
-        """
-        This is the pytorch lightning prepare_data function that is responsible for downloading data and other 
-        simple operations, such as verifying its existence and reading the files. See PyTL documentation for details.
-        """
-
-        self.all_dataframes, self.train_dataframes, self.val_dataframes, self.test_dataframes = None, None, None, None
-        if hasattr(self.args, 'data_dir'): #A single directory is passed with all the data
-            self.all_dataframes = self._read_csv_directory(self.args.data_dir)
-        else: #separate directories are passed for train/val/test data
-            self.train_dataframes = self._read_csv_directory(self.args.train_data_dir)
-            self.val_dataframes = self._read_csv_directory(self.args.val_data_dir)
-            self.test_dataframes = self._read_csv_directory(self.args.test_data_dir)
     
     def _resample_positive_rows(self, df: pd.DataFrame, positive_label: Any="1") -> pd.DataFrame:
         """Calls the df_ops resample function for a given dataframe, subject to the parameter arguments
@@ -158,41 +144,47 @@ class BaseCSVDataModule(BaseDataModule):
         else:
             return df
 
-    def _maybe_map_labels(self):
-        if 'label_map' in self.args.hparams and isinstance(self.args.hparams['label_map'], dict):
-            self.logger.info("Using label map {}".format(self.args.hparams['label_map']))
-            self._train_dataset = map_labels(self._train_dataset, self.label_col, self.args.hparams['label_map'])
-            self._val_dataset = map_labels(self._val_dataset, self.label_col, self.args.hparams['label_map'])
-            self._test_dataset = map_labels(self._test_dataset, self.label_col, self.args.hparams['label_map'])
-
-    def setup(self, stage: str=None):
-        """This is the pytorch lightning setup function that is responsible for splitting data and doing other
-        operations that are split across hardware. For more information, see PyTL documentation for details.
+    def split_dataframes(self, all_dataframes: List[pd.DataFrame]=None, train_dataframes: List[pd.DataFrame]=None, val_dataframes: List[pd.DataFrame]=None, test_dataframes: List[pd.DataFrame]=None, stage: str=None):
+        """[summary]
 
         Args:
-            stage ([str], optional): The PyTL stage. Defaults to None.
+            all_dataframes (List[pd.DataFrame], optional): [description]. Defaults to None.
+            train_dataframes (List[pd.DataFrame], optional): [description]. Defaults to None.
+            val_dataframes (List[pd.DataFrame], optional): [description]. Defaults to None.
+            test_dataframes (List[pd.DataFrame], optional): [description]. Defaults to None.
+            stage (str, optional): [description]. Defaults to None.
+
+        Returns:
+            [type]: [description]
         """
         if stage == "fit" or stage == None:
-            if self.all_dataframes is None:
-                self._train_dataset, _, _ = split_dataframes(self.train_dataframes, train_ratio=1., validation_ratio=0., test_ratio=0., shuffle=True)
-                _, self._val_dataset, _ = split_dataframes(self.val_dataframes, train_ratio=0., validation_ratio=1., test_ratio=0., shuffle=True)
-                _, _, self._test_dataset = split_dataframes(self.test_dataframes, train_ratio=0., validation_ratio=0., test_ratio=1., shuffle=True)
+            if all_dataframes is None:
+                train_dataset, _, _ = split_dataframes(train_dataframes, train_ratio=1., validation_ratio=0., test_ratio=0., shuffle=True)
+                _, val_dataset, _ = split_dataframes(val_dataframes, train_ratio=0., validation_ratio=1., test_ratio=0., shuffle=True)
+                _, _, test_dataset = split_dataframes(test_dataframes, train_ratio=0., validation_ratio=0., test_ratio=1., shuffle=True)
             else:
-                self._train_dataset, self._val_dataset, self._test_dataset = split_dataframes(
-                    self.all_dataframes, train_ratio=self.args.hparams['train_ratio'],
+                train_dataset, val_dataset, test_dataset = split_dataframes(
+                    all_dataframes, train_ratio=self.args.hparams['train_ratio'],
                     validation_ratio=self.args.hparams['validation_ratio'], test_ratio=None, shuffle=True)
-                
-            self._train_dataset = self._resample_positive_rows(self._train_dataset)
-            self._maybe_map_labels()
             
+            train_dataset = self._resample_positive_rows(train_dataset)
+            if 'label_map' in self.args.hparams and isinstance(self.args.hparams['label_map'], dict):
+                self.logger.info("Using label map {}".format(self.args.hparams['label_map']))
+                train_dataset = map_labels(train_dataset, self.label_col, self.args.hparams['label_map'])
+                val_dataset = map_labels(val_dataset, self.label_col, self.args.hparams['label_map'])
+                test_dataset = map_labels(test_dataset, self.label_col, self.args.hparams['label_map'])
+                
             self.logger.info("Dataset split complete. (Total) Dataset Shapes:\n\tTrain: {}\nV\talidation: {}\n\tTest: {}".format(
-                self._train_dataset.shape, self._val_dataset.shape, self._test_dataset.shape))
+                train_dataset.shape, val_dataset.shape, test_dataset.shape))
+            
+            return train_dataset, val_dataset, test_dataset
         else: #evaluating
-            self._test_dataset = pd.concat(self.all_dataframes if self.all_dataframes is not None else self.test_dataframes)
-            self._test_dataset[self.sample_id_col] = range(
-                len(self._test_dataset))
+            test_dataset = pd.concat(all_dataframes if all_dataframes is not None else test_dataframes)
+            test_dataset[self.sample_id_col] = range(
+                len(test_dataset))
             self.logger.info("In evaluation mode. Dataset Shapes:\n\tTest: {}".format(
-                self._test_dataset.shape))
+                test_dataset.shape))
+            return None, None, test_dataset
 
     def _set_class_sizes(self):
         self.train_class_sizes = self._train_dataset[self.label_col].value_counts().to_dict()
