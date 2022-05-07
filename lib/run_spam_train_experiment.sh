@@ -1,4 +1,4 @@
-export CUDA_VISIBLE_DEVICES=0,1
+export CUDA_VISIBLE_DEVICES=0
 
 #These args are essential and standard
 NOW=$(date +'%Y_%m_%d__%H_%M_%S_%Z')
