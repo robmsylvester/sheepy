@@ -9,7 +9,7 @@ inherit from for your task.
 
 ## Installation and Preparation
 1. Clone repository
-1. Create virtual environment `virtualenv -p python3.7 .venv`
+1. Create virtual environment `python -m venv .venv`, though you should make sure your system is using python 3.8 or 3.9
 (This is what version of Python I used to develop this. Later versions might give you problems)
 1. Install local requirements
    `pip install --upgrade pip`
