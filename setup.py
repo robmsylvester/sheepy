@@ -6,7 +6,7 @@ sys.path.append(os.path.dirname(__file__))
 __version__ = "0.1.4"
 
 setup(
-    name='transformer_classification_framework',
+    name='sheepy',
     version=__version__,
     description='Experiment-tracking wrapper around PyTorch Lightning, Weights & Biases, Pandas, and Huggingface Trasformers that aims at rapid experimentation for common text classification tasks using transformers',
     author='Rob Sylvester',
