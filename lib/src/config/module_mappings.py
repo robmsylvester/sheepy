@@ -1,6 +1,7 @@
 from lib.src.data_modules.base_csv_data_module import BaseCSVDataModule
 from lib.src.data_modules.multi_label_csv_data_module import MultiLabelCSVDataModule
 
+from lib.src.data_modules.epilepsy_data_module import EpilepsyDataModule
 from lib.src.data_modules.examples.sms_spam_data_module import SmsSpamDataModule
 from lib.src.data_modules.examples.toxic_comment_data_module import ToxicCommentDataModule
 from lib.src.data_modules.examples.semeval_sentiment_data_module import SemEvalSentimentDataModule
@@ -15,7 +16,8 @@ data_module_mapping = {
     'toxic_comment_data_module': MultiLabelCSVDataModule,
     'sms_spam_data_module': SmsSpamDataModule,
     'toxic_comment_data_module': ToxicCommentDataModule,
-    'semeval_data_module': SemEvalSentimentDataModule
+    'semeval_data_module': SemEvalSentimentDataModule,
+    'epilepsy_data_module': EpilepsyDataModule
 }
 
 model_mapping = {
