@@ -3,7 +3,7 @@ import os
 import sys
 sys.path.append(os.path.dirname(__file__))
 
-__version__ = "0.1.2"
+__version__ = "0.1.4"
 
 setup(
     name='transformer_classification_framework',
@@ -27,5 +27,6 @@ setup(
         "tqdm~=4.56.0",
         "setuptools~=53.0.0",
         "torchmetrics==0.6.0"
-    ]
+    ],
+    packages=find_packages()
 )
