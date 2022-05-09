@@ -131,15 +131,15 @@ lightning_logs/*
 
 #wandb logs (for safety)
 wandb/*
-lib/wandb
+sheepy/wandb
 
 #VS Code files
 .vscode/
 
 #model outputs
-lib/outputs
+sheepy/outputs
 
 #resources for datasets
-lib/resources/datasets/tweet_sentiment140
-lib/resources/datasets/toxic_comments
-lib/resources/datasets/personal
+sheepy/resources/datasets/tweet_sentiment140
+sheepy/resources/datasets/toxic_comments
+sheepy/resources/datasets/personal

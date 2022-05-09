@@ -60,9 +60,9 @@ The experiment class houses the highest level abstraction. It consists of
 1. Hyperparameter tuning (SweepExperiment class)
 
 ### Experiment Configs
-Many of the arguments for the data modules and models are shared between different tasks, such as which metrics you want to 
-track, or which labels you want to track. In `lib/src/config` you will find example configurations for all the samples as
-well as a thorough explanation of what they all mean in `config_guide.json`. 
+Many of the arguments for the data modules and models are shared between different tasks, such as which metrics you want to
+track, or which labels you want to track. In `sheepy/src/config` you will find example configurations for all the samples as
+well as a thorough explanation of what they all mean in `config_guide.json`.
 There are four keys in the top-level of this config:
 1. "experiment" - unique identifiers that is used to create directories and save/load models. Also where you point to your data modules and lightning modules
 1. "metrics" - list of pytorch metrics that you care about tracking"
@@ -91,7 +91,7 @@ lightning data modules, so anything you want to override in prepare_data(), setu
 write here.
 1. Any command line args you want to add can be done with the add_model_specific_args class method as seen in the other data module examples.
 1. Optionally create a model (lightning module) Base transformer classifiers are already written, but you might have some extra engineered features that you wish to concatenate using the augmented_transformer_classifier, for example.
-1. Make sure the name of your data module and model are registered in `lib/src/config/module_mappings.py` to point to your class.
+1. Make sure the name of your data module and model are registered in `sheepy/src/config/module_mappings.py` to point to your class.
 1. Create a shell script that calls the experiment class pointing at whatever arguments you need to specify. See the examples and `main.py`
 1. You'll want to register your code changes py reinstalling the setup script: `python setup.py install`
 
