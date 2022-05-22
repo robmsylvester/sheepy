@@ -1,3 +1,6 @@
+import json
+import os
+
 import pandas as pd
 import torch
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
@@ -5,12 +8,13 @@ from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
 class SequenceClassificationModelRunner:
     def __init__(self, model_dir: str):
-        self.model_dir = model_dir
+        with open(os.path.join(model_dir, "config.json")) as f:
+            self.config = json.load(f)
 
-        self.model = AutoModelForSequenceClassification.from_pretrained(self.model_dir)
+        self.model = AutoModelForSequenceClassification.from_pretrained(model_dir)
         self.model.eval()
 
-        self.tokenizer = AutoTokenizer.from_pretrained(self.model_dir)
+        self.tokenizer = AutoTokenizer.from_pretrained(model_dir)
 
     def predict(self, text, min_prob=0.0):
         inputs = self.tokenizer(text, return_tensors="pt")
@@ -21,7 +25,7 @@ class SequenceClassificationModelRunner:
         df = pd.DataFrame(
             {
                 "prob": probs[0],
-                # "label_name": self.label_names,
+                "label_name": self.config["label"],
             }
         )
         df = df.sort_values("prob", ascending=False)
