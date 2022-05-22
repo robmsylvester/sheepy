@@ -257,6 +257,7 @@ class BaseClassifier(pl.LightningModule):
     @pl.utilities.rank_zero_only
     def on_save_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
         save_path = os.path.join(self.args.output_dir, "best_tfrm")
+        self.text_representation.model.config.update(self.args.hparams)
         self.text_representation.model.save_pretrained(save_path)
         self.data.tokenizer.tokenizer.save_pretrained(save_path)
 
