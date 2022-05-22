@@ -1,6 +1,7 @@
 import argparse
+import os
 from collections import OrderedDict
-from typing import List
+from typing import Any, Dict, List
 
 import pytorch_lightning as pl
 import torch
@@ -252,6 +253,12 @@ class BaseClassifier(pl.LightningModule):
         })
 
         return output
+
+    @pl.utilities.rank_zero_only
+    def on_save_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
+        save_path = os.path.join(self.args.output_dir, "best_tfrm")
+        self.text_representation.model.save_pretrained(save_path)
+        self.data.tokenizer.tokenizer.save_pretrained(save_path)
 
     #NOTE - PyTorch Lightning 1.5.1 still uses this on_ prefix for predict_step_end, but this may change soon. see here: https://github.com/PyTorchLightning/pytorch-lightning/issues/9380
     def on_predict_step_end(self, outputs: list) -> list:

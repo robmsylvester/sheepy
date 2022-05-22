@@ -13,7 +13,7 @@ class SequenceClassificationModelRunner:
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_dir)
 
     def predict(self, text, min_prob=0.0):
-        inputs = self.tokenizer(text)
+        inputs = self.tokenizer(text, return_tensors="pt")
         logits = self.model(**inputs)[0]
         probs = torch.sigmoid(logits)
         probs = probs.detach().cpu().numpy()
@@ -21,7 +21,7 @@ class SequenceClassificationModelRunner:
         df = pd.DataFrame(
             {
                 "prob": probs[0],
-                "label_name": self.label_names,
+                # "label_name": self.label_names,
             }
         )
         df = df.sort_values("prob", ascending=False)
