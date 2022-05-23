@@ -1,13 +1,12 @@
-import sys
 import logging
 
-def get_std_out_logger():
-    handler = logging.StreamHandler(sys.stdout)
-    handler.setLevel(logging.INFO)
-    handler.setFormatter(logging.Formatter(
-        '%(asctime)s %(levelname)s: %(message)s '
-        '[in %(filename)s:%(lineno)d]'
-    ))
+from rich.logging import RichHandler
+
+
+def get_std_out_logger(log_level=logging.INFO):
+    handler = RichHandler(rich_tracebacks=True, log_time_format="%Y-%m-%d %H:%M:%S")
+    handler.setLevel(log_level)
+    handler.setFormatter(logging.Formatter("%(message)s"))
     logger = logging.Logger('stdout_logger')
     logger.addHandler(handler)
     return logger
