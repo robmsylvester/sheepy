@@ -37,12 +37,12 @@ class TransformerClassifier(BaseClassifier):
         """ Initializes the BERT model and the classification head."""
         self.text_representation = TextRepresentation(self.args.hparams['encoder_model'])
 
-        layer_config = []
+        self.layer_config = []
 
         #Build a list of hidden layer sizes starting with output size of the transformers
         input_size = self.text_representation.encoder_features
         for layer_size in self.args.hparams['hidden_layer_sizes']:
-            layer_config.append({
+            self.layer_config.append({
                 "input_size": input_size,
                 "output_size": layer_size,
                 "dropout_p": self.args.hparams['dropout_p']
@@ -50,13 +50,13 @@ class TransformerClassifier(BaseClassifier):
             input_size = layer_size
 
         #Logit layer handled separately
-        layer_config.append({
+        self.layer_config.append({
             "input_size": input_size,
             "output_size": self.args.hparams["num_labels"],
             "dropout_p": 0
         })
 
-        self.classification_head = FullyConnectedClassifier(layer_config)
+        self.classification_head = FullyConnectedClassifier(self.layer_config)
 
     def forward(self, tokens, lengths) -> dict:
         """ Usual pytorch forward function.

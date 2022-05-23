@@ -1,6 +1,8 @@
+import os
+from typing import Dict, List
+
 import torch
 import torch.nn as nn
-from typing import List, Dict
 
 
 class DenseLayer(nn.Module):
@@ -30,7 +32,7 @@ class FullyConnectedClassifier(nn.Module):
 
             The last element in the list should have an output_size = the number of desired logits in your classifier
             The output_size of element n must be equal to the input size of element n+1
-            Dropout will be ignored on the final element of the list 
+            Dropout will be ignored on the final element of the list
 
             For now, all activations are rectified linear units.
         """
@@ -50,3 +52,6 @@ class FullyConnectedClassifier(nn.Module):
             hidden_states = layer(hidden_states)
         logits = self.classifier(hidden_states)
         return logits
+
+    def save_pretrained(self, save_path: str) -> None:
+        torch.save(self.state_dict(), os.path.join(save_path, "classification_head.bin"))
