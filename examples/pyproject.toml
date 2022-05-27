@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "epilepsy"
+name = "sheepy_examples"
 version = "0.1.0"
 description = ""
 authors = []
