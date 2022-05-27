@@ -1,22 +1,23 @@
 import json
 import os
-import pandas as pd
 import random
-import json
-from typing import Any, Dict, List, Union, Tuple
 from copy import deepcopy
+from typing import Any, Dict, List, Tuple, Union
+
+import pandas as pd
 
 # TODO - move this global variable
-SOURCE_FILE = 'source_file'
+SOURCE_FILE = "source_file"
 
-#TODO - docstrings
+# TODO - docstrings
+
 
 def column_exists(col_name: str, my_df: pd.DataFrame):
     """Helper function for readability to check if a column exists in a dataframe"""
     return True if col_name in my_df.columns else False
 
-def read_csv(path: str,
-             filter_cols: List[str]=None) -> pd.DataFrame:
+
+def read_csv(path: str, filter_cols: List[str] = None) -> pd.DataFrame:
     """
     Reads a full comma-separated value file and returns all columns. Some safety checks
 
@@ -33,14 +34,17 @@ def read_csv(path: str,
 
     return df.astype(str)
 
-def read_csv_text_classifier(path: str,
-                             encoding: str="utf-8",
-                             delimiter: str=",",
-                             evaluate: bool = False,
-                             label_cols: Union[str, List[str]] = "label",
-                             text_col: str = "text",
-                             additional_cols: List[str] = None,
-                             names: List[str] = None) -> pd.DataFrame:
+
+def read_csv_text_classifier(
+    path: str,
+    encoding: str = "utf-8",
+    delimiter: str = ",",
+    evaluate: bool = False,
+    label_cols: Union[str, List[str]] = "label",
+    text_col: str = "text",
+    additional_cols: List[str] = None,
+    names: List[str] = None,
+) -> pd.DataFrame:
     """
     Reads a full comma-separated value file that stores, at the minimum, a text column as well as a label column.
 
@@ -76,11 +80,13 @@ def read_csv_text_classifier(path: str,
         for col in labels:
             if not column_exists(col, df):
                 raise ValueError(
-                    "{} not a valid label column in dataset csv at {}".format(col, path))
+                    "{} not a valid label column in dataset csv at {}".format(col, path)
+                )
 
     if text_col is None or not column_exists(text_col, df):
         raise ValueError(
-            f"{text_col} is not a valid text column. Your text column must be a string that exists in the dataframe")
+            f"{text_col} is not a valid text column. Your text column must be a string that exists in the dataframe"
+        )
 
     if evaluate:
         return_df = df  # preserving all columns because in eval mode we have to output all columns
@@ -99,6 +105,7 @@ def read_csv_text_classifier(path: str,
 
     return return_df.astype(str)
 
+
 def add_relative_position(document: pd.DataFrame, index_col=None) -> pd.DataFrame:
     """
     Given a dataframe and a possibly-specified index colummn, otherwise using the default,
@@ -106,15 +113,19 @@ def add_relative_position(document: pd.DataFrame, index_col=None) -> pd.DataFram
     the row index. In other words, if your dataframe has 100 rows, the 50th row would have a relative_position
     of 0.0, and the 25th row would have a relative_position of -0.5.
     """
-    document['temp_dummy'] = range(document.shape[0])
-    document['relative_position'] = (
-        (document['temp_dummy'] / document.shape[0]) * 2) - 1
-    document.drop(columns=['temp_dummy'], inplace=True)
+    document["temp_dummy"] = range(document.shape[0])
+    document["relative_position"] = ((document["temp_dummy"] / document.shape[0]) * 2) - 1
+    document.drop(columns=["temp_dummy"], inplace=True)
     return document
 
 
-def split_dataframes(dataframes: List[pd.DataFrame], train_ratio: float, validation_ratio: float,
-                     test_ratio: float = None, shuffle: bool = True) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+def split_dataframes(
+    dataframes: List[pd.DataFrame],
+    train_ratio: float,
+    validation_ratio: float,
+    test_ratio: float = None,
+    shuffle: bool = True,
+) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """
     Splits dataframes to train, valid and test dfs according to the provided ratios.
 
@@ -130,10 +141,11 @@ def split_dataframes(dataframes: List[pd.DataFrame], train_ratio: float, validat
         return split_dataframe(dataframes[0], train_ratio, validation_ratio, shuffle)
 
     first_validation_index = round(len(dataframes) * train_ratio)
-    first_test_index = round(
-        len(dataframes) * (train_ratio + validation_ratio))
+    first_test_index = round(len(dataframes) * (train_ratio + validation_ratio))
 
-    if first_validation_index == 0 or (first_validation_index == first_test_index and validation_ratio > 0):
+    if first_validation_index == 0 or (
+        first_validation_index == first_test_index and validation_ratio > 0
+    ):
         # list of dataframes is too short
         dataframe = pd.concat(dataframes)
         return split_dataframe(dataframe, train_ratio, validation_ratio, shuffle)
@@ -145,17 +157,28 @@ def split_dataframes(dataframes: List[pd.DataFrame], train_ratio: float, validat
     validation_dfs = dataframes[first_validation_index:first_test_index]
     test_dfs = dataframes[first_test_index:]
     train = pd.concat(train_dfs)
-    validation = pd.concat(validation_dfs) if len(validation_dfs) else pd.DataFrame(
-        columns=train_dfs[0].columns.tolist())
-    test = pd.concat(test_dfs) if len(test_dfs) else pd.DataFrame(
-        columns=train_dfs[0].columns.tolist())
+    validation = (
+        pd.concat(validation_dfs)
+        if len(validation_dfs)
+        else pd.DataFrame(columns=train_dfs[0].columns.tolist())
+    )
+    test = (
+        pd.concat(test_dfs)
+        if len(test_dfs)
+        else pd.DataFrame(columns=train_dfs[0].columns.tolist())
+    )
 
     # Early check on dataset sizes here should enforce length of each
     return train, validation, test
 
 
-def split_dataframe(df: pd.DataFrame, train_ratio: float, validation_ratio: float, test_ratio: float = None,
-                    shuffle: bool = False):
+def split_dataframe(
+    df: pd.DataFrame,
+    train_ratio: float,
+    validation_ratio: float,
+    test_ratio: float = None,
+    shuffle: bool = False,
+):
     """
     Splits dataframe to train, valid and test dfs according to the provided ratios.
     :param df: dataframe to split
@@ -176,6 +199,7 @@ def split_dataframe(df: pd.DataFrame, train_ratio: float, validation_ratio: floa
 
     return train, validation, test
 
+
 def write_csv_dataset(df: pd.DataFrame, output_path: str):
     if os.path.isdir(output_path):
         for source_file, results in df.groupby(SOURCE_FILE, as_index=False):
@@ -189,10 +213,10 @@ def write_json_dataset(df: pd.DataFrame, output_path: str):
     if os.path.isdir(output_path):
         for source_file, results in df.groupby(SOURCE_FILE, as_index=False):
             results = results.drop(SOURCE_FILE, axis=1)
-            results.to_json(os.path.join(
-                output_path, source_file), orient='records')
+            results.to_json(os.path.join(output_path, source_file), orient="records")
     elif os.path.isfile(output_path) and output_path.endswith(".json"):
-        df.to_json(output_path, orient='records')
+        df.to_json(output_path, orient="records")
+
 
 def map_labels(df: pd.DataFrame, label_col: str, label_map: Dict) -> pd.DataFrame:
     """[summary]
@@ -212,7 +236,9 @@ def map_labels(df: pd.DataFrame, label_col: str, label_map: Dict) -> pd.DataFram
     return df
 
 
-def resample_positives(df: pd.DataFrame, resample_rate: int, label_col: str, pos_label_val: Any, reshuffle=True) -> pd.DataFrame:
+def resample_positives(
+    df: pd.DataFrame, resample_rate: int, label_col: str, pos_label_val: Any, reshuffle=True
+) -> pd.DataFrame:
     """Given a dataframe, and logic identifying the positive label column, generate multiple copies of rows.
     Generally this is used on the training set with a sparse positive
 
@@ -222,26 +248,26 @@ def resample_positives(df: pd.DataFrame, resample_rate: int, label_col: str, pos
         actually make copies, because using the value 1 would not actually do anything.
         label_col (str): Will copy rows that match logic for this column name
         pos_label_val (Any): Will copy rows that match logic for the label_col column name to equal this label value.
-        reshuffle (bool, optional): Reshuffle the dataframe rows when done. Defaults to True. 
+        reshuffle (bool, optional): Reshuffle the dataframe rows when done. Defaults to True.
     Returns:
         pd.DataFrame: Dataframes with added rows.
-    
+
     Raises:
         ValueError: resample_rate is not a positive integer
     """
     if not isinstance(resample_rate, int) or resample_rate < 1:
         raise ValueError("Resample rate for positive rows must be a positive integer.")
     elif resample_rate > 1:
-        df_to_copy = df[df[label_col] == pos_label_val] 
+        df_to_copy = df[df[label_col] == pos_label_val]
         df = df.append([df_to_copy] * (resample_rate - 1), ignore_index=True)
     if reshuffle:
         df = df.sample(frac=1).reset_index(drop=True)
     return df
 
-def resample_multilabel_positives(df: pd.DataFrame,
-    resample_rate_dict: Dict,
-    pos_label_val: Any="1",
-    reshuffle=True) -> pd.DataFrame:
+
+def resample_multilabel_positives(
+    df: pd.DataFrame, resample_rate_dict: Dict, pos_label_val: Any = "1", reshuffle=True
+) -> pd.DataFrame:
     """Given a dataframe, and logic identifying positive label columns and their positive label values, generate multiple copies of rows.
     Generally this is used on the training set with one or more sparse positives.
 
@@ -251,8 +277,8 @@ def resample_multilabel_positives(df: pd.DataFrame,
     Also note that copies will be made for each label. So if a sample has several positive labels, a separate copy
     will be made for each of the label iteration values. For example:
 
-    {'A': 0, 'B': 1, 'C': 1, 'D': 1} might be a sample, 
-    
+    {'A': 0, 'B': 1, 'C': 1, 'D': 1} might be a sample,
+
     and if you had a resample rate dict of: {
         'A': 4,
         'B': 4,
@@ -267,29 +293,37 @@ def resample_multilabel_positives(df: pd.DataFrame,
         resample_rate_dict (Dict): A dictionary with keys equal to the label columns and values telling us the rate of positives to use for that key.
         Note that this must be at least 2 to actually make copies, because using the value 1 would not actually do anything.
         pos_label_val (Any, optional): Will copies rows that match logic for each label_cols column name to equal this label value. Defaults to "1".
-        reshuffle (bool, optional): Reshuffle the dataframe rows when done. Defaults to True. 
+        reshuffle (bool, optional): Reshuffle the dataframe rows when done. Defaults to True.
 
     Returns:
         pd.DataFrame: Dataframes with added rows.
-    
+
     Raises:
         ValueError: resample_rate has a value that is not a positive integer
         ValueError: resample_rate has a key that is not a column in the dataframe
     """
     dfs_to_add = []
-    for k,v in resample_rate_dict.items():
+    for k, v in resample_rate_dict.items():
         if not isinstance(v, int) or v < 1:
-            raise ValueError("All resample rates in resample_rate_dict must be positive integers. Value is {} for label {}".format(v,k))
+            raise ValueError(
+                "All resample rates in resample_rate_dict must be positive integers. Value is {} for label {}".format(
+                    v, k
+                )
+            )
         if k not in list(df.columns):
-            raise ValueError("Key {} is in resample_rate_dict but not in dataframe column list".format(k))
+            raise ValueError(
+                "Key {} is in resample_rate_dict but not in dataframe column list".format(k)
+            )
         if v > 1:
             df_to_copy = df[df[k] == pos_label_val]
-            for copy_index in range(v - 1): #if a resample rate is 2, this adds 1 copy, hence the subtraction
+            for copy_index in range(
+                v - 1
+            ):  # if a resample rate is 2, this adds 1 copy, hence the subtraction
                 dfs_to_add.append(df_to_copy)
-    
+
     for df_to_add in dfs_to_add:
         df = df.append(df_to_add, ignore_index=True)
-        
+
     if reshuffle:
         df = df.sample(frac=1).reset_index(drop=True)
     return df

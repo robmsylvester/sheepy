@@ -28,10 +28,9 @@ class MultiLabelBaseClassifier(BaseClassifier):
         return self.data.pos_weights
 
     def _build_loss(self):
-        """ Initializes the loss function/s."""
+        """Initializes the loss function/s."""
         # have to do it this way to preserve label order
-        pos_weights = [self.data.pos_weights[k]
-                       for k in self.args.hparams["label"]]
+        pos_weights = [self.data.pos_weights[k] for k in self.args.hparams["label"]]
         pos_weights = torch.FloatTensor(pos_weights)
 
         # BCEWithLogitsLoss combines the sigmoid operation in a numerically stable fashion. that's why we don't include the
@@ -61,7 +60,9 @@ class MultiLabelBaseClassifier(BaseClassifier):
         """
         cms = self._create_confusion_matrices(outputs)
         for label_name, confusion_matrix in cms.items():
-            self.logger.experiment.log({"train/epoch_confusion_matrix/{}".format(label_name): confusion_matrix})
+            self.logger.experiment.log(
+                {"train/epoch_confusion_matrix/{}".format(label_name): confusion_matrix}
+            )
         return None
 
     def validation_epoch_end(self, outputs: List[Dict]) -> Dict:
@@ -76,7 +77,9 @@ class MultiLabelBaseClassifier(BaseClassifier):
         """
         cms = self._create_confusion_matrices(outputs)
         for label_name, confusion_matrix in cms.items():
-            self.logger.experiment.log({"val/epoch_confusion_matrix/{}".format(label_name): confusion_matrix})
+            self.logger.experiment.log(
+                {"val/epoch_confusion_matrix/{}".format(label_name): confusion_matrix}
+            )
         return None
 
     def test_epoch_end(self, outputs: List[Dict]):
@@ -90,12 +93,13 @@ class MultiLabelBaseClassifier(BaseClassifier):
         """
         cms = self._create_confusion_matrices(outputs)
         for label_name, confusion_matrix in cms.items():
-            self.logger.experiment.log({"test/epoch_confusion_matrix/{}".format(label_name): confusion_matrix})
+            self.logger.experiment.log(
+                {"test/epoch_confusion_matrix/{}".format(label_name): confusion_matrix}
+            )
         return None
 
-    #NOTE - PyTorch Lightning 1.5.1 still uses this on_ prefix for predict_epoch_end, but this may change soon. see here: https://github.com/PyTorchLightning/pytorch-lightning/issues/9380
+    # NOTE - PyTorch Lightning 1.5.1 still uses this on_ prefix for predict_epoch_end, but this may change soon. see here: https://github.com/PyTorchLightning/pytorch-lightning/issues/9380
     def on_predict_epoch_end(self, outputs: List) -> Dict:
-
         def sigmoid(x):
             return 1 / (1 + math.exp(-x))
 
@@ -113,7 +117,7 @@ class MultiLabelBaseClassifier(BaseClassifier):
             self.data._write_predictions(outputs[0])
         return None
 
-    #This probably becomes the shared eval step
+    # This probably becomes the shared eval step
     def _shared_evaluation_step(self, batch: tuple, batch_idx: int, stage: str) -> OrderedDict:
         """[summary]
 
@@ -137,16 +141,18 @@ class MultiLabelBaseClassifier(BaseClassifier):
         val_acc = torch.sum(labels == preds).item() / (len(labels) * 1.0)
         val_acc = torch.tensor(val_acc)
 
-        loss_key = stage + '/loss'
-        acc_key = stage + '/acc'
+        loss_key = stage + "/loss"
+        acc_key = stage + "/acc"
 
-        output = OrderedDict({
-            loss_key: loss_val,
-            acc_key: val_acc,
-            "logits": logits,
-            "pred": preds,
-            "target": labels
-        })
+        output = OrderedDict(
+            {
+                loss_key: loss_val,
+                acc_key: val_acc,
+                "logits": logits,
+                "pred": preds,
+                "target": labels,
+            }
+        )
 
         # can also return just a scalar instead of a dict (return loss_val)
         return output
@@ -162,12 +168,22 @@ class MultiLabelBaseClassifier(BaseClassifier):
         """
         cms = {}
         for label_idx, label in enumerate(self.data.label_encoder.vocab):
-            logits = torch.cat([output['logits'][:, label_idx]
-                            for output in outputs]).detach().cpu().numpy()
-            pred = (logits >= 0.0).astype(int) #TODO - arg out this default
-            trg = torch.cat([output['target'][:, label_idx]
-                                for output in outputs]).detach().cpu().numpy()
+            logits = (
+                torch.cat([output["logits"][:, label_idx] for output in outputs])
+                .detach()
+                .cpu()
+                .numpy()
+            )
+            pred = (logits >= 0.0).astype(int)  # TODO - arg out this default
+            trg = (
+                torch.cat([output["target"][:, label_idx] for output in outputs])
+                .detach()
+                .cpu()
+                .numpy()
+            )
 
-            cm = wandb.plot.confusion_matrix(y_true=trg, preds=pred, class_names=["Not_{}".format(label), label])
+            cm = wandb.plot.confusion_matrix(
+                y_true=trg, preds=pred, class_names=["Not_{}".format(label), label]
+            )
             cms[label] = cm
         return cms

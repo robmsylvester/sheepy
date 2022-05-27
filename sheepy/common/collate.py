@@ -12,11 +12,11 @@ from sheepy.nlp.tokenizer import Tokenizer
 #     inputs: samples and their lengths
 #     targets: labels
 #     ids: sample ids (used to align predicted values with corresponding samples in multi-GPU environment)
-CollatedSample = namedtuple(
-    'CollatedSample', ['inputs', 'targets', 'ids'])
+CollatedSample = namedtuple("CollatedSample", ["inputs", "targets", "ids"])
 
-def _get_sample_list(samples: List[str], sample_size: int=None) -> List[str]:
-    """"Returns a list of samples from a list, without repetition.
+
+def _get_sample_list(samples: List[str], sample_size: int = None) -> List[str]:
+    """ "Returns a list of samples from a list, without repetition.
 
     Args:
         samples (List[str]): a list of strings
@@ -32,12 +32,19 @@ def _get_sample_list(samples: List[str], sample_size: int=None) -> List[str]:
         sample_size = len(samples)
 
     if sample_size > len(samples):
-        raise ValueError("Sampling {} samples isn't possible when only {} are available".format(sample_size, len(samples)))
+        raise ValueError(
+            "Sampling {} samples isn't possible when only {} are available".format(
+                sample_size, len(samples)
+            )
+        )
 
     chosen = random.sample(samples, k=sample_size)
     return chosen
 
-def _concatenate_text_samples(sample: dict, keys: List[str], default_separator: str=".") -> List[str]:
+
+def _concatenate_text_samples(
+    sample: dict, keys: List[str], default_separator: str = "."
+) -> List[str]:
     """Given a sample dicitonary, return a single string of concatenated strings, each of which is a key
     in the list 'keys' for the dictionary. the dictionary, at each of these keys, will have a list of values
     that is as long as the batch length in the current iteration.
@@ -56,14 +63,15 @@ def _concatenate_text_samples(sample: dict, keys: List[str], default_separator: 
     sample_batch_size = len(sample[keys[0]])
     for idx in range(sample_batch_size):
         formatted_sample_string = []
-        sample_strings = [sample[key][idx] for key in keys] #returns a list of length batch_size
+        sample_strings = [sample[key][idx] for key in keys]  # returns a list of length batch_size
         for ss in sample_strings:
             if len(ss):
-                if ss[-1] not in ['?','!','.']:
+                if ss[-1] not in ["?", "!", "."]:
                     ss += default_separator
                 formatted_sample_string.append(ss)
         out_strings.append(" ".join([fss for fss in formatted_sample_string]))
     return out_strings
+
 
 def round_size(size: int):
     """
@@ -75,13 +83,16 @@ def round_size(size: int):
         lowest_power_of_two *= 2
     return lowest_power_of_two
 
-def single_text_collate_function(sample: list,
-                                 text_key: str,
-                                 label_keys: Union[str, List[str]],
-                                 id_key: str,
-                                 tokenizer: Tokenizer,
-                                 label_encoder: LabelEncoder = None,
-                                 evaluate: bool = False) -> CollatedSample:
+
+def single_text_collate_function(
+    sample: list,
+    text_key: str,
+    label_keys: Union[str, List[str]],
+    id_key: str,
+    tokenizer: Tokenizer,
+    label_encoder: LabelEncoder = None,
+    evaluate: bool = False,
+) -> CollatedSample:
     """
     Function that prepares a sample to input the model.
 
@@ -107,7 +118,10 @@ def single_text_collate_function(sample: list,
         tokens, lengths = tokenizer.batch_encode(sample[text_key])
     except KeyError:
         raise KeyError(
-            "Text key {} does not exist in sample. Sample keys are:\n{}".format(text_key, list(sample.keys())))
+            "Text key {} does not exist in sample. Sample keys are:\n{}".format(
+                text_key, list(sample.keys())
+            )
+        )
 
     inputs = {"tokens": tokens, "lengths": lengths}
     targets = {}
@@ -123,7 +137,10 @@ def single_text_collate_function(sample: list,
                 targets = {"labels": label_encoder.batch_encode(sample[label_keys])}
         except KeyError:
             raise KeyError(
-                "Label key {} does not exist in sample. Sample keys are:\n{}".format(label_keys, list(sample.keys())))
+                "Label key {} does not exist in sample. Sample keys are:\n{}".format(
+                    label_keys, list(sample.keys())
+                )
+            )
         except RuntimeError:
             raise Exception("Label encoder found an unknown label.")
 

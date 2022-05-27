@@ -27,16 +27,23 @@ class MultiLabelBaseDataModule(BaseDataModule):
 
     def _verify_multilabel(self):
         assert isinstance(
-            self.args.hparams["label"], list), "hyperparameter of labels must be a list for the multi label module to be used"
-        assert len(
-            self.args.hparams["label"]) > 1, "there must be more than one label in the list for the multi label module to be used"
-        assert self.args.hparams["num_labels"] == len(self.args.hparams["label"]), "config sees {} labels but num_labels set to {}".format(
-            len(self.args.hparams["label"]), self.args.hparams["num_labels"])
-
+            self.args.hparams["label"], list
+        ), "hyperparameter of labels must be a list for the multi label module to be used"
+        assert (
+            len(self.args.hparams["label"]) > 1
+        ), "there must be more than one label in the list for the multi label module to be used"
+        assert self.args.hparams["num_labels"] == len(
+            self.args.hparams["label"]
+        ), "config sees {} labels but num_labels set to {}".format(
+            len(self.args.hparams["label"]), self.args.hparams["num_labels"]
+        )
 
     @classmethod
     def add_model_specific_args(cls, parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
-        """ Return the argument parser with necessary args for this class appended to it """
-        parser.add_argument("--disable_weight_scale", action="store_true",
-                            help="Disables automatically scaling class weights from training set")
+        """Return the argument parser with necessary args for this class appended to it"""
+        parser.add_argument(
+            "--disable_weight_scale",
+            action="store_true",
+            help="Disables automatically scaling class weights from training set",
+        )
         return parser

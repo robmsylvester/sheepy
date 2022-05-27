@@ -1,7 +1,8 @@
-import torch
-from transformers import AutoTokenizer
-from torchnlp.encoders.text.text_encoder import TextEncoder
 from typing import Tuple
+
+import torch
+from torchnlp.encoders.text.text_encoder import TextEncoder
+from transformers import AutoTokenizer
 
 
 class Tokenizer(TextEncoder):
@@ -19,22 +20,22 @@ class Tokenizer(TextEncoder):
 
     @property
     def unk_index(self) -> int:
-        """ Returns the index used for the unknown token. """
+        """Returns the index used for the unknown token."""
         return self.tokenizer.unk_token_id
 
     @property
     def bos_index(self) -> int:
-        """ Returns the index used for the begin-of-sentence token. """
+        """Returns the index used for the begin-of-sentence token."""
         return self.tokenizer.cls_token_id
 
     @property
     def eos_index(self) -> int:
-        """ Returns the index used for the end-of-sentence token. """
+        """Returns the index used for the end-of-sentence token."""
         return self.tokenizer.sep_token_id
 
     @property
     def pad_index(self) -> int:
-        """ Returns the index used for the padding token. """
+        """Returns the index used for the padding token."""
         return self.tokenizer.pad_token_id
 
     @property
@@ -54,7 +55,7 @@ class Tokenizer(TextEncoder):
         return len(self.itos)
 
     def encode(self, sequence: str) -> torch.Tensor:
-        """ Encodes a 'sequence'.
+        """Encodes a 'sequence'.
         Arguments:
             :param sequence: String 'sequence' to encode.
 
@@ -82,15 +83,14 @@ class Tokenizer(TextEncoder):
             return_token_type_ids=False,
             return_attention_mask=False,
             truncation="only_first",
-            max_length=512
+            max_length=512,
         )
         return tokenizer_output["input_ids"], tokenizer_output["length"]
 
 
-def mask_fill(fill_value: float,
-              tokens: torch.tensor,
-              embeddings: torch.tensor,
-              pad_index: int) -> torch.tensor:
+def mask_fill(
+    fill_value: float, tokens: torch.tensor, embeddings: torch.tensor, pad_index: int
+) -> torch.tensor:
     """
     Function that masks embeddings representing padded elements.
 

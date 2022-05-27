@@ -12,5 +12,5 @@ class MultiLabelTransformerClassifier(MultiLabelBaseClassifier, TransformerClass
 
     @classmethod
     def add_model_specific_args(cls, parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
-        """ Return the argument parser with necessary args for this class appended to it """
+        """Return the argument parser with necessary args for this class appended to it"""
         return parser
