@@ -35,7 +35,8 @@ setup(
         "Pillow~=8.1.0",
         "tqdm~=4.56.0",
         "setuptools~=53.0.0",
-        "torchmetrics==0.6.0"
+        "torchmetrics==0.6.0",
+        "rich>=12.4.1",
     ],
     packages=find_packages()
 )

@@ -4,7 +4,7 @@ import os
 from argparse import ArgumentError, Namespace
 
 import pytorch_lightning as pl
-from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
+from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint, RichProgressBar
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 from pytorch_lightning.loggers import WandbLogger
 from torch.cuda import device_count
@@ -171,7 +171,7 @@ class Experiment():
         """
         self.checkpoint_callback = self._build_checkpoint_callback()
         self.lr_monitor_callback = LearningRateMonitor()
-        self.custom_callbacks = [self.checkpoint_callback, self.lr_monitor_callback]
+        self.custom_callbacks = [self.checkpoint_callback, self.lr_monitor_callback, RichProgressBar()]
         if self.args.hparams['early_stop_enabled']:
             self.early_stop_callback = self._build_early_stop_callback()
             self.custom_callbacks.append(self.early_stop_callback)
