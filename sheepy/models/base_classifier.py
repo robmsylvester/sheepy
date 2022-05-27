@@ -257,10 +257,8 @@ class BaseClassifier(pl.LightningModule):
     @pl.utilities.rank_zero_only
     def on_save_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
         save_path = os.path.join(self.args.output_dir, "best_tfrm")
-        self.text_representation.model.config.update(self.args.hparams)
-        self.text_representation.model.config.update({"layer_config": self.layer_config})
-        self.text_representation.model.save_pretrained(save_path)
-        self.classification_head.save_pretrained(save_path)
+        self.model.config.update(self.args.hparams)
+        self.model.save_pretrained(save_path)
         self.data.tokenizer.tokenizer.save_pretrained(save_path)
 
     #NOTE - PyTorch Lightning 1.5.1 still uses this on_ prefix for predict_step_end, but this may change soon. see here: https://github.com/PyTorchLightning/pytorch-lightning/issues/9380

@@ -4,7 +4,7 @@ from argparse import Namespace
 from pytorch_lightning import LightningDataModule
 from torch import optim
 from torchnlp.utils import lengths_to_mask
-from transformers import AutoModelForSequenceClassification
+from transformers import AutoConfig, AutoModelForSequenceClassification
 
 from sheepy.models.base_classifier import BaseClassifier
 
@@ -27,13 +27,18 @@ class TransformerClassifier(BaseClassifier):
         # build model
         self._build_model()
         self._build_loss()
-        if self.args.hparams["nr_frozen_epochs"] > 0:
-            self.text_representation.freeze_encoder()
 
     def _build_model(self) -> None:
         """Initializes the BERT model and the classification head."""
+        config = AutoConfig.from_pretrained(
+            self.args.hparams["encoder_model"],
+            num_labels=len(self.args.hparams["label"]),
+            id2label={id: label for id, label in enumerate(self.args.hparams["label"])},
+            label2id={label: id for id, label in enumerate(self.args.hparams["label"])},
+        )
         self.model = AutoModelForSequenceClassification.from_pretrained(
-            self.args.hparams["encoder_model"]
+            self.args.hparams["encoder_model"],
+            config=config,
         )
 
     def forward(self, tokens, lengths) -> dict:
@@ -58,19 +63,13 @@ class TransformerClassifier(BaseClassifier):
     def configure_optimizers(self):
         """Sets different Learning rates for different parameter groups."""
         parameters = [
-            {"params": self.classification_head.parameters()},
             {
-                "params": self.text_representation.model.parameters(),
+                "params": self.model.parameters(),
                 "lr": self.args.hparams["encoder_learning_rate"],
             },
         ]
         optimizer = optim.Adam(parameters, lr=self.args.hparams["learning_rate"])
         return [optimizer], []
-
-    def on_epoch_end(self):
-        """Pytorch lightning hook"""
-        if self.current_epoch + 1 >= self.args.hparams["nr_frozen_epochs"]:
-            self.text_representation.unfreeze_encoder()
 
     @classmethod
     def add_model_specific_args(cls, parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
