@@ -75,7 +75,7 @@ class ToxicCommentDataModule(MultiLabelCSVDataModule):
             [type]: [description]
         """
         self.all_dataframes = None
-        if stage == "fit" or stage == None:
+        if stage == "fit" or stage is None:
             self.train_dataframes = self._read_csv_directory(
                 os.path.join(self.args.data_dir, "train.csv")
             )

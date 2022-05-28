@@ -1,5 +1,4 @@
 import argparse
-from typing import List
 
 from sheepy.data_modules.base_data_module import BaseDataModule
 

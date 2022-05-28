@@ -71,8 +71,8 @@ class LabelEncoder:
             ValueError: any of the labels do not exist in the vocabulary and there is not an unknown_label argument set
         """
         outputs = []
-        for l in self.vocab:
-            integerized_label = [int(i) for i in sample[l]]
+        for label in self.vocab:
+            integerized_label = [int(i) for i in sample[label]]
             outputs.append(integerized_label)
         outputs = tensor(outputs)
         # transpose gets us to (batch_size, num_labels)

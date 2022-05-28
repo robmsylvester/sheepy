@@ -189,7 +189,7 @@ class BaseCSVDataModule(BaseDataModule):
         Returns:
             [type]: [description]
         """
-        if stage == "fit" or stage == None:
+        if stage == "fit" or stage is None:
             if all_dataframes is None:
                 train_dataset, _, _ = split_dataframes(
                     train_dataframes,

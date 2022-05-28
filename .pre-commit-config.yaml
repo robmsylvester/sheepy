@@ -31,4 +31,4 @@ repos:
     hooks:
       - id: detect-secrets
         args: ["--baseline", ".secrets.baseline"]
-        exclude: (package-lock.json|.ipynb|poetry.lock|Makefile)
+        exclude: (.ipynb|poetry.lock|.csv)

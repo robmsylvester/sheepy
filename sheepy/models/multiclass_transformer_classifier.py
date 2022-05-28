@@ -86,15 +86,6 @@ class MulticlassTransformerClassifier(TransformerClassifier):
 
         val_loss_mean /= len(outputs)
         val_acc_mean /= len(outputs)
-        tqdm_dict = {"val_loss": val_loss_mean, "val_acc": val_acc_mean}
-        result = {
-            "progress_bar": tqdm_dict,
-            "log": tqdm_dict,
-            "val_loss": val_loss_mean,
-            "f1": f1,
-            "precision": precision,
-            "recall": recall,
-        }
         tracked_metrics = {
             "val_loss": val_loss_mean,
             "val_acc": val_acc_mean,
