@@ -258,7 +258,7 @@ class Experiment():
 
             if args.pretrained_dir is None:
                 args.pretrained_dir = os.path.join(
-                    args.output_dir, args.project_name, args.experiment_name)
+                    args.output_dir, args.project_name, "models", args.experiment_name)
 
             args.output_dir = os.path.join(
                 args.pretrained_dir, 'eval')
@@ -273,7 +273,7 @@ class Experiment():
                     args.precision, args.time, args.version)
 
             args.output_dir = os.path.join(
-                args.output_dir, args.project_name, args.experiment_name)
+                args.output_dir, args.project_name, "models", args.experiment_name)
 
         if not os.path.exists(args.output_dir):
             os.makedirs(args.output_dir)
@@ -283,7 +283,7 @@ class Experiment():
     @classmethod
     def add_model_specific_args(cls, parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
         """ Return the argument pasrser with necessary args for this class appended to it """
-        parser.add_argument("--project_name", type=str, default="test",
+        parser.add_argument("--project_name", type=str, default="dummy_project",
                             help="A custom project name. Will house all experiments under this project directory. First level under the output dir")
         parser.add_argument("--experiment_name", type=str, default=None,
                             help="A custom experiment name. Otherwise it will be be set to {16/32}bit_{time}_{version}, but give it a name/ Second level under the output dir")
