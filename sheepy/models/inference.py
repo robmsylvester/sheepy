@@ -3,7 +3,7 @@ import os
 
 import pandas as pd
 import torch
-from transformers import AutoModel, AutoModelForSequenceClassification, AutoTokenizer
+from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
 
 class SequenceClassificationModelRunner:
