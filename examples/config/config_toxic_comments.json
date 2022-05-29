@@ -44,7 +44,7 @@
         ],
         "text": "comment_text",
         "encoder_model": "google/bert_uncased_L-2_H-128_A-2",
-        "positive_resample_rate" : {
+        "positive_resample_rate": {
             "toxic": 2,
             "severe_toxic": 30,
             "obscene": 8,
@@ -57,7 +57,6 @@
         "loader_workers": 8,
         "context_labels": "remove",
         "batch_size": 32,
-        "hidden_layer_sizes": [128, 128, 32],
         "save_epoch_count": 4,
         "num_epochs": 10,
         "num_epochs_decay": 100,
@@ -92,13 +91,6 @@
             "learning_rate": {
                 "min": 1e-5,
                 "max": 5e-4
-            },
-            "num_dense_layers": {
-                "values": [
-                    [512, 256, 64],
-                    [256, 64],
-                    [512, 256, 128, 64]
-                ]
             }
         }
     }

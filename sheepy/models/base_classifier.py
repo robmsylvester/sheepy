@@ -4,9 +4,7 @@ from collections import OrderedDict
 from typing import Any, Dict, List
 
 import pytorch_lightning as pl
-import shap
 import torch
-import transformers
 import wandb
 from pytorch_lightning import LightningDataModule
 
@@ -35,8 +33,8 @@ class BaseClassifier(pl.LightningModule):
         if self.args.tune:
             wandb.init()  # gives access to wandb.config
             for k, v in wandb.config.items():
-                if k in self.args.hparams:
-                    self.args.hparams[k] = v
+                if k in self.args:
+                    self.args[k] = v
                     print("Setting model hyperparameter {} to sweep value {}".format(k, v))
 
     def _build_model(self):
@@ -204,14 +202,6 @@ class BaseClassifier(pl.LightningModule):
         Returns:
             - Dictionary with metrics to be added to the lightning logger.
         """
-        pipeline = transformers.pipline(
-            "text-classification",
-            model=self.model,
-            tokenizer=self.data.tokenizer,
-            return_all_scores=True,
-        )
-        explainer = shap.Explainer(pipeline)
-        shap_values = explainer(outputs["text"])
 
         cm = self._create_confusion_matrix(outputs, name="Validation Epoch Confusion Matrix")
         self.logger.experiment.log({"val/epoch_confusion_matrix": cm})
@@ -278,7 +268,7 @@ class BaseClassifier(pl.LightningModule):
     @pl.utilities.rank_zero_only
     def on_save_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
         save_path = os.path.join(self.args.output_dir, "best_tfrm")
-        self.model.config.update(self.args.hparams)
+        self.model.config.update({"custom_args": vars(self.args)})
         self.model.save_pretrained(save_path)
         self.data.tokenizer.tokenizer.save_pretrained(save_path)
 
@@ -322,7 +312,6 @@ class BaseClassifier(pl.LightningModule):
                 loss_key: loss_val,
                 "logits": logits,
                 "target": labels,
-                "text": self.data.tokenizer.decode(inputs["input_ids"]),
             }
         )
 

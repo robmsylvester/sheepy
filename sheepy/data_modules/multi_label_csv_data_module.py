@@ -26,15 +26,15 @@ class MultiLabelCSVDataModule(BaseCSVDataModule):
 
     def _verify_multilabel(self):
         assert isinstance(
-            self.args.hparams["label"], list
+            self.args.label, list
         ), "hyperparameter of labels must be a list for the multi label module to be used"
         assert (
-            len(self.args.hparams["label"]) > 1
+            len(self.args.label) > 1
         ), "there must be more than one label in the list for the multi label module to be used"
-        assert self.args.hparams["num_labels"] == len(
-            self.args.hparams["label"]
+        assert self.args.num_labels == len(
+            self.args.label
         ), "config sees {} labels but num_labels set to {}".format(
-            len(self.args.hparams["label"]), self.args.hparams["num_labels"]
+            len(self.args.label), self.args.num_labels
         )
 
     def _resample_positive_rows(self, df: pd.DataFrame, positive_label: Any = "1") -> pd.DataFrame:
@@ -56,7 +56,7 @@ class MultiLabelCSVDataModule(BaseCSVDataModule):
         Returns:
             pd.DataFrame: Dataframe with resamples rows added
         """
-        resample_rate = self.args.hparams.get("positive_resample_rate", 1)
+        resample_rate = self.args.positive_resample_rate
         if isinstance(resample_rate, dict):
             self.logger.info("Resampling multilabel positives...")
             return resample_multilabel_positives(df, resample_rate, positive_label)
@@ -127,7 +127,7 @@ class MultiLabelCSVDataModule(BaseCSVDataModule):
             self.train_class_sizes = module_dict["class_sizes"]
             self.label_encoder = module_dict["label_encoder"]
             self.pos_weights = module_dict["pos_weights"]
-        assert self.label_encoder.vocab_size == self.args.hparams["num_labels"]
+        assert self.label_encoder.vocab_size == self.args.num_labels
 
     # TODO - this one is probably good
     def _set_class_sizes(self, positive_label="1", negative_label="0"):
@@ -156,7 +156,7 @@ class MultiLabelCSVDataModule(BaseCSVDataModule):
 
     def _build_label_encoder(self):
         self.label_encoder = LabelEncoder.initializeFromMultilabelDataframe(
-            self._train_dataset, self.args.hparams["label"]
+            self._train_dataset, self.args.label
         )
         self.logger.info("Label Encoder Vocab: {}".format(self.label_encoder.vocab))
 

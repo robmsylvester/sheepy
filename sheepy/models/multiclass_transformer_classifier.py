@@ -9,19 +9,16 @@ from sheepy.models.base_transformer_classifier import TransformerClassifier
 
 
 class MulticlassTransformerClassifier(TransformerClassifier):
-    """
-    Similar to the base (binary) classifier, with adjustments made for multiclass datasets
-    """
+    """Similar to the base (binary) classifier, with adjustments made for multiclass datasets"""
 
     def __init__(self, args: Namespace, data: LightningDataModule, logger=None) -> None:
         super().__init__(args, data)
         assert (
-            self.args.hparams["num_labels"] > 2
+            self.args.num_labels > 2
         ), "The Config object sees num_labels expected to be 2. The multiclass classifier must use at least 3. If you have just two labels, use a base classifier"
 
     def _build_metrics(self) -> None:
-        """
-        This function establishes the metrics that we want to track in weights and biases for the experiment.
+        """This function establishes the metrics that we want to track in weights and biases for the experiment.
 
         Note this is just a small variation from the binary classifier where we kill off auroc
         """
@@ -101,5 +98,3 @@ class MulticlassTransformerClassifier(TransformerClassifier):
         self.log("f1", f1, prog_bar=True)
         self.log("val_loss", val_loss_mean, prog_bar=True)
         self.log("val_acc", val_acc_mean, prog_bar=True)
-
-        return None

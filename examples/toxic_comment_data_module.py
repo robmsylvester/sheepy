@@ -81,8 +81,8 @@ class ToxicCommentDataModule(MultiLabelCSVDataModule):
             )
             self._train_dataset, self._val_dataset, _ = split_dataframes(
                 self.train_dataframes,
-                train_ratio=self.args.hparams["train_ratio"],
-                validation_ratio=self.args.hparams["validation_ratio"],
+                train_ratio=self.args.train_ratio,
+                validation_ratio=self.args.validation_ratio,
                 test_ratio=0.0,
                 shuffle=True,
             )
@@ -108,7 +108,7 @@ class ToxicCommentDataModule(MultiLabelCSVDataModule):
             )
 
             train_label_size_out = "Training Dataset Sample Size For Each Label:\n"
-            for label in self.args.hparams["label"]:
+            for label in self.args.label:
                 support = self._train_dataset[self._train_dataset[label] == "1"].shape[0]
                 train_label_size_out += "\t{}: {} samples ({} %)\n".format(
                     label, support, round(100 * support / self._train_dataset.shape[0], 4)

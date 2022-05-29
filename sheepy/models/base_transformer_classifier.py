@@ -31,13 +31,13 @@ class TransformerClassifier(BaseClassifier):
     def _build_model(self) -> None:
         """Initializes the BERT model and the classification head."""
         config = AutoConfig.from_pretrained(
-            self.args.hparams["encoder_model"],
-            num_labels=len(self.args.hparams["label"]),
-            id2label={id: label for id, label in enumerate(self.args.hparams["label"])},
-            label2id={label: id for id, label in enumerate(self.args.hparams["label"])},
+            self.args.encoder_model,
+            num_labels=len(self.args.label),
+            id2label={id: label for id, label in enumerate(self.args.label)},
+            label2id={label: id for id, label in enumerate(self.args.label)},
         )
         self.model = AutoModelForSequenceClassification.from_pretrained(
-            self.args.hparams["encoder_model"],
+            self.args.encoder_model,
             config=config,
         )
 
@@ -54,21 +54,17 @@ class TransformerClassifier(BaseClassifier):
         # but when splitting batches across GPU the tokens have padding
         # from the entire original batch
         mask = lengths_to_mask(lengths, device=tokens.device)
-
-        # Run BERT model.
-        logits = self.model(tokens, mask)[0]
-        # Linear Classifier
-        return {"logits": logits}
+        return {"logits": self.model(tokens, mask)[0]}
 
     def configure_optimizers(self):
         """Sets different Learning rates for different parameter groups."""
         parameters = [
             {
                 "params": self.model.parameters(),
-                "lr": self.args.hparams["encoder_learning_rate"],
+                "lr": self.args.encoder_learning_rate,
             },
         ]
-        optimizer = optim.Adam(parameters, lr=self.args.hparams["learning_rate"])
+        optimizer = optim.Adam(parameters, lr=self.args.learning_rate)
         return [optimizer], []
 
     @classmethod

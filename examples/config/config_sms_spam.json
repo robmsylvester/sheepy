@@ -36,7 +36,7 @@
     "hparams": {
         "label": "label",
         "text": "text",
-        "positive_resample_rate" : 5,
+        "positive_resample_rate": 5,
         "disable_weight_scale": false,
         "nr_frozen_epochs": 1,
         "loader_workers": 8,
@@ -44,7 +44,6 @@
         "n_prev_text_samples_sample_size": 4,
         "n_next_text_samples_sample_size": 4,
         "batch_size": 16,
-        "hidden_layer_sizes": [512, 256, 64],
         "save_epoch_count": 4,
         "num_epochs": 6,
         "num_epochs_decay": 100,
@@ -79,13 +78,6 @@
             "learning_rate": {
                 "min": 1e-5,
                 "max": 5e-4
-            },
-            "num_dense_layers": {
-                "values": [
-                    [512, 256, 64],
-                    [256, 64],
-                    [512, 256, 128, 64]
-                ]
             }
         }
     }

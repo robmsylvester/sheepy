@@ -3,12 +3,18 @@ import math
 from collections import OrderedDict
 from typing import Dict, List
 
+import matplotlib.pyplot as plt
+import shap
 import torch
+import transformers
 import wandb
 from numpy import vectorize
 from pytorch_lightning import LightningDataModule
 
+from sheepy.common.logger import get_std_out_logger
 from sheepy.models.base_classifier import BaseClassifier
+
+logger = get_std_out_logger()
 
 
 class MultiLabelBaseClassifier(BaseClassifier):
@@ -30,7 +36,7 @@ class MultiLabelBaseClassifier(BaseClassifier):
     def _build_loss(self):
         """Initializes the loss function/s."""
         # have to do it this way to preserve label order
-        pos_weights = [self.data.pos_weights[k] for k in self.args.hparams["label"]]
+        pos_weights = [self.data.pos_weights[k] for k in self.args.label]
         pos_weights = torch.FloatTensor(pos_weights)
 
         # BCEWithLogitsLoss combines the sigmoid operation in a numerically stable fashion. that's why we don't include the
@@ -63,7 +69,6 @@ class MultiLabelBaseClassifier(BaseClassifier):
             self.logger.experiment.log(
                 {"train/epoch_confusion_matrix/{}".format(label_name): confusion_matrix}
             )
-        return None
 
     def validation_epoch_end(self, outputs: List[Dict]) -> Dict:
         """Runs pytorch lightning validation_epoch_end_function. For more details, see
@@ -75,12 +80,39 @@ class MultiLabelBaseClassifier(BaseClassifier):
         Returns:
             - Dictionary with metrics to be added to the lightning logger.
         """
+        self.plot_explanations(outputs)
+
         cms = self._create_confusion_matrices(outputs)
         for label_name, confusion_matrix in cms.items():
             self.logger.experiment.log(
                 {"val/epoch_confusion_matrix/{}".format(label_name): confusion_matrix}
             )
-        return None
+
+    def plot_explanations(self, outputs):
+        def model_predict_function(x):
+            inputs = self.data.tokenizer.tokenizer(
+                x.tolist(), return_tensors="pt", padding=True, truncation=True
+            )
+            inputs = {k: v.to(self.device) for k, v in inputs.items()}
+            outputs = self.model(**inputs)[0]
+            scores = torch.nn.Softmax(dim=-1)(outputs)
+            val = torch.logit(scores).detach().cpu().numpy()
+            return val
+
+        explainer = shap.Explainer(model_predict_function, self.data.tokenizer.tokenizer)
+        texts = [output["text"] for output in outputs]
+        # Flatten the list of lists
+        texts = [item for sublist in texts for item in sublist]
+        logger.info(f"Generating shap values for {len(texts)} samples ...")
+        shap_values = explainer(texts)
+        for label in shap_values.output_names:
+            shap.plots.bar(shap_values[:, :, label].mean(0), show=False)
+            self.logger.log_image(
+                key=f"val/shap/{label}",
+                images=[plt.gcf()],
+            )
+            plt.close()
+        # self.model.to(self.device)
 
     def test_epoch_end(self, outputs: List[Dict]):
         """[summary]
@@ -96,7 +128,6 @@ class MultiLabelBaseClassifier(BaseClassifier):
             self.logger.experiment.log(
                 {"test/epoch_confusion_matrix/{}".format(label_name): confusion_matrix}
             )
-        return None
 
     # NOTE - PyTorch Lightning 1.5.1 still uses this on_ prefix for predict_epoch_end, but this may change soon. see here: https://github.com/PyTorchLightning/pytorch-lightning/issues/9380
     def on_predict_epoch_end(self, outputs: List) -> Dict:
@@ -115,7 +146,6 @@ class MultiLabelBaseClassifier(BaseClassifier):
             print(output_str)
         else:
             self.data._write_predictions(outputs[0])
-        return None
 
     # This probably becomes the shared eval step
     def _shared_evaluation_step(self, batch: tuple, batch_idx: int, stage: str) -> OrderedDict:
@@ -151,6 +181,11 @@ class MultiLabelBaseClassifier(BaseClassifier):
                 "logits": logits,
                 "pred": preds,
                 "target": labels,
+                "text": self.data.tokenizer.tokenizer.batch_decode(
+                    inputs["tokens"],
+                    skip_special_tokens=True,
+                    clean_up_tokenization_spaces=True,
+                ),
             }
         )
 

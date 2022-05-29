@@ -28,18 +28,14 @@ class SweepExperiment(Experiment):
         """A sweep trainer is really no different than a normal trainer module, except that we return
         it directly for each process thread via a return statement instead of an assignment, and the
         accelerator is specified as 'dp' due to the multiprocessing requiremets of the sweep"""
-        return pl.Trainer(
+        return pl.Trainer.from_argparse_args(
+            self.args,
             callbacks=self.custom_callbacks,
             logger=self.wandb,
-            gradient_clip_val=self.args.hparams["gradient_clip_val"],
             gpus=self.args.n_gpu,
             log_gpu_memory="all",
             deterministic=True,
-            check_val_every_n_epoch=self.args.validation["check_val_every_n_epoch"],
             fast_dev_run=False,
-            accumulate_grad_batches=self.args.hparams["accumulate_grad_batches"],
-            max_epochs=self.args.hparams["num_epochs"],
-            val_check_interval=self.args.validation["val_check_interval"],
             accelerator="dp",
             amp_level="O1",
             precision=self.args.precision,
