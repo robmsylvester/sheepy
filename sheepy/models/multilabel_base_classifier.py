@@ -99,20 +99,21 @@ class MultiLabelBaseClassifier(BaseClassifier):
             val = torch.logit(scores).detach().cpu().numpy()
             return val
 
-        explainer = shap.Explainer(model_predict_function, self.data.tokenizer.tokenizer)
+        explainer = shap.Explainer(
+            model_predict_function, self.data.tokenizer.tokenizer, output_names=self.args.label
+        )
         texts = [output["text"] for output in outputs]
         # Flatten the list of lists
         texts = [item for sublist in texts for item in sublist]
         logger.info(f"Generating shap values for {len(texts)} samples ...")
         shap_values = explainer(texts)
         for label in shap_values.output_names:
-            shap.plots.bar(shap_values[:, :, label].mean(0), show=False)
+            shap.plots.bar(shap_values[:, :, label].mean(0), show=False, order=shap.Explanation.abs)
             self.logger.log_image(
                 key=f"val/shap/{label}",
                 images=[plt.gcf()],
             )
             plt.close()
-        # self.model.to(self.device)
 
     def test_epoch_end(self, outputs: List[Dict]):
         """[summary]
