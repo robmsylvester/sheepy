@@ -4,7 +4,9 @@ from collections import OrderedDict
 from typing import Any, Dict, List
 
 import pytorch_lightning as pl
+import shap
 import torch
+import transformers
 import wandb
 from pytorch_lightning import LightningDataModule
 
@@ -162,7 +164,6 @@ class BaseClassifier(pl.LightningModule):
         """
         cm = self._create_confusion_matrix(outputs, name="Train Epoch Confusion Matrix")
         self.logger.experiment.log({"train/epoch_confusion_matrix": cm})
-        return None
 
     # TODO - this implementation is too specific for the base class. Move to children
     def validation_step(self, batch: tuple, batch_nb: int) -> OrderedDict:
@@ -203,9 +204,17 @@ class BaseClassifier(pl.LightningModule):
         Returns:
             - Dictionary with metrics to be added to the lightning logger.
         """
+        pipeline = transformers.pipline(
+            "text-classification",
+            model=self.model,
+            tokenizer=self.data.tokenizer,
+            return_all_scores=True,
+        )
+        explainer = shap.Explainer(pipeline)
+        shap_values = explainer(outputs["text"])
+
         cm = self._create_confusion_matrix(outputs, name="Validation Epoch Confusion Matrix")
         self.logger.experiment.log({"val/epoch_confusion_matrix": cm})
-        return None
 
     def test_step(self, batch: tuple, batch_idx: int) -> OrderedDict:
         """[summary]
@@ -239,7 +248,6 @@ class BaseClassifier(pl.LightningModule):
         """Triggers self.data to write predictions to the disk"""
         cm = self._create_confusion_matrix(outputs, name="Test Epoch Confusion Matrix")
         self.logger.experiment.log({"test/epoch_confusion_matrix": cm})
-        return None
 
     def predict_step(self, batch: tuple, batch_idx: int, dataloader_idx: int = 0):
         """PyTorch Lightning function to do raw batch prediction
@@ -289,7 +297,6 @@ class BaseClassifier(pl.LightningModule):
             print(output_str)
         else:
             self.data._write_predictions(outputs[0])
-        return None
 
     def _shared_evaluation_step(self, batch: tuple, batch_idx: int, stage: str) -> OrderedDict:
         """[summary]
@@ -310,7 +317,14 @@ class BaseClassifier(pl.LightningModule):
         logits = model_out["logits"]
 
         loss_key = stage + "/loss"
-        output = OrderedDict({loss_key: loss_val, "logits": logits, "target": labels})
+        output = OrderedDict(
+            {
+                loss_key: loss_val,
+                "logits": logits,
+                "target": labels,
+                "text": self.data.tokenizer.decode(inputs["input_ids"]),
+            }
+        )
 
         return output
 
