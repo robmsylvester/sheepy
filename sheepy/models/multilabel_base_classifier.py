@@ -6,7 +6,6 @@ from typing import Dict, List
 import matplotlib.pyplot as plt
 import shap
 import torch
-import transformers
 import wandb
 from numpy import vectorize
 from pytorch_lightning import LightningDataModule
@@ -96,8 +95,7 @@ class MultiLabelBaseClassifier(BaseClassifier):
             inputs = {k: v.to(self.device) for k, v in inputs.items()}
             outputs = self.model(**inputs)[0]
             scores = torch.nn.Softmax(dim=-1)(outputs)
-            val = torch.logit(scores).detach().cpu().numpy()
-            return val
+            return torch.logit(scores).detach().cpu().numpy()
 
         explainer = shap.Explainer(
             model_predict_function, self.data.tokenizer.tokenizer, output_names=self.args.label
@@ -108,7 +106,9 @@ class MultiLabelBaseClassifier(BaseClassifier):
         logger.info(f"Generating shap values for {len(texts)} samples ...")
         shap_values = explainer(texts)
         for label in shap_values.output_names:
-            shap.plots.bar(shap_values[:, :, label].mean(0), show=False, order=shap.Explanation.abs)
+            shap.plots.bar(
+                shap_values[:, :, label].mean(0), show=False, order=shap.Explanation.argsort.flip
+            )
             self.logger.log_image(
                 key=f"val/shap/{label}",
                 images=[plt.gcf()],
