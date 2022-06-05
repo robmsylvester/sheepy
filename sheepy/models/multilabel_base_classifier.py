@@ -1,9 +1,12 @@
 import argparse
 import math
+import os
 from collections import OrderedDict
 from typing import Dict, List
 
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 import shap
 import torch
 import wandb
@@ -192,6 +195,20 @@ class MultiLabelBaseClassifier(BaseClassifier):
 
         # can also return just a scalar instead of a dict (return loss_val)
         return output
+
+    def write_outputs(self, texts, y_score, labels, metadata=None, mode: str = "test"):
+        score_df = pd.DataFrame(
+            y_score, columns=[f"score_{label_name}" for label_name in self.label_names]
+        )
+        true_df = pd.DataFrame(
+            labels, columns=[f"true_{label_name}" for label_name in self.label_names]
+        )
+
+        text_df = pd.DataFrame({"text": texts, "metadata": metadata})
+        df = pd.concat((text_df, score_df, true_df), axis=1)
+        df = df.sample(min(10000, df.shape[0]))
+        logger.info(f"Saving samples ... \n {df}")
+        df.to_csv(os.path.join(self.hparams.output_dir, f"{mode}_sample.csv"), index=False)
 
     def _create_confusion_matrices(self, outputs: Dict) -> Dict:
         """[summary]
