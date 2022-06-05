@@ -157,7 +157,12 @@ class Experiment:
 
     def _build_wandb_logger(self):
         """Helper function to dump weights and biases files into a model's directory"""
+        if self.args.disable_logging:
+            self.wandb = None
+            return
+
         logger = WandbLogger(
+            entity=self.args.entity,
             name=self.args.experiment_name,
             save_dir=self.args.output_dir,
             project=self.args.project_name,
@@ -176,7 +181,8 @@ class Experiment:
         else:
             log_steps = None
         # TODO - self.log_hyperparams and self.log_metrics should be called here too eventually
-        self.wandb.watch(self.model, log="all", log_freq=log_steps)
+        if self.wandb:
+            self.wandb.watch(self.model, log="all", log_freq=log_steps)
 
     def _build_callbacks(self):
         """Helper function that reads model config arguments and builds out which callbacks need to run. A callback is
@@ -187,12 +193,13 @@ class Experiment:
         to self.custom_callbacks
         """
         self.checkpoint_callback = self._build_checkpoint_callback()
-        self.lr_monitor_callback = LearningRateMonitor()
         self.custom_callbacks = [
             self.checkpoint_callback,
-            self.lr_monitor_callback,
             RichProgressBar(),
         ]
+        if not self.args.disable_logging:
+            self.custom_callbacks.append(LearningRateMonitor())
+
         if self.args.early_stop_enabled:
             self.early_stop_callback = self._build_early_stop_callback()
             self.custom_callbacks.append(self.early_stop_callback)
@@ -310,6 +317,11 @@ class Experiment:
     def add_model_specific_args(cls, parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
         """Return the argument pasrser with necessary args for this class appended to it"""
         parser.add_argument(
+            "--entity",
+            type=str,
+            help="You can specify an entity to group the runs under if using a shared project",
+        )
+        parser.add_argument(
             "--project_name",
             type=str,
             default="dummy_project",
@@ -325,4 +337,5 @@ class Experiment:
             "--version", type=str, default="0", help="Version of model. Defaults to 0"
         )
         parser.add_argument("--verbose", action="store_true", help="Enable for debug-level logging")
+        parser.add_argument("--disable_logging", action="store_true", help="Disable logging")
         return parser
