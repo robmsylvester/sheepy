@@ -22,7 +22,7 @@
         "batch_size": "int, batch size for training",
         "dense_layer_scale_factor": "float, scale factor from FC layer n to FC layer n+1",
         "save_epoch_count": "int, only now used in image model. controls minimum epoch number to start saving",
-        "num_epochs": "int, number of training epochs",
+        "max_epochs": "int, number of training epochs",
         "num_epochs_decay": "int, number of epochs to start decaying learning rate",
         "accumulate_grad_batches": "int, number of batches to run to accumulate gradients. 1 is safe",
         "gradient_clip_val": "int, l2-norm gradient max clip to control stability. 1 is good. maybe 2 or 3 but no higher usually",
