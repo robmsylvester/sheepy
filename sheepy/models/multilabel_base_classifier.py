@@ -2,7 +2,7 @@ import argparse
 import math
 import os
 from collections import OrderedDict
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -66,11 +66,7 @@ class MultiLabelBaseClassifier(BaseClassifier):
         Returns:
             - Dictionary with metrics to be added to the lightning logger.
         """
-        cms = self._create_confusion_matrices(outputs)
-        for label_name, confusion_matrix in cms.items():
-            self.logger.experiment.log(
-                {"train/epoch_confusion_matrix/{}".format(label_name): confusion_matrix}
-            )
+        self.create_confusion_matrices(outputs, mode="train")
 
     def validation_epoch_end(self, outputs: List[Dict]) -> Dict:
         """Runs pytorch lightning validation_epoch_end_function. For more details, see
@@ -82,41 +78,9 @@ class MultiLabelBaseClassifier(BaseClassifier):
         Returns:
             - Dictionary with metrics to be added to the lightning logger.
         """
-        self.plot_explanations(outputs)
-
-        cms = self._create_confusion_matrices(outputs)
-        for label_name, confusion_matrix in cms.items():
-            self.logger.experiment.log(
-                {"val/epoch_confusion_matrix/{}".format(label_name): confusion_matrix}
-            )
-
-    def plot_explanations(self, outputs):
-        def model_predict_function(x):
-            inputs = self.data.tokenizer.tokenizer(
-                x.tolist(), return_tensors="pt", padding=True, truncation=True
-            )
-            inputs = {k: v.to(self.device) for k, v in inputs.items()}
-            outputs = self.model(**inputs)[0]
-            scores = torch.nn.Softmax(dim=-1)(outputs)
-            return torch.logit(scores).detach().cpu().numpy()
-
-        explainer = shap.Explainer(
-            model_predict_function, self.data.tokenizer.tokenizer, output_names=self.args.label
-        )
-        texts = [output["text"] for output in outputs]
-        # Flatten the list of lists
-        texts = [item for sublist in texts for item in sublist]
-        logger.info(f"Generating shap values for {len(texts)} samples ...")
-        shap_values = explainer(texts)
-        for label in shap_values.output_names:
-            shap.plots.bar(
-                shap_values[:, :, label].mean(0), show=False, order=shap.Explanation.argsort.flip
-            )
-            self.logger.log_image(
-                key=f"val/shap/{label}",
-                images=[plt.gcf()],
-            )
-            plt.close()
+        self.write_sample_outputs(outputs, "val")
+        self.plot_explanations(outputs, "val")
+        self.create_confusion_matrices(outputs, "val")
 
     def test_epoch_end(self, outputs: List[Dict]):
         """[summary]
@@ -127,11 +91,8 @@ class MultiLabelBaseClassifier(BaseClassifier):
         Returns:
             [type]: [description]
         """
-        cms = self._create_confusion_matrices(outputs)
-        for label_name, confusion_matrix in cms.items():
-            self.logger.experiment.log(
-                {"test/epoch_confusion_matrix/{}".format(label_name): confusion_matrix}
-            )
+        self.write_sample_outputs(outputs, "test")
+        self.create_confusion_matrices(outputs, "test")
 
     # NOTE - PyTorch Lightning 1.5.1 still uses this on_ prefix for predict_epoch_end, but this may change soon. see here: https://github.com/PyTorchLightning/pytorch-lightning/issues/9380
     def on_predict_epoch_end(self, outputs: List) -> Dict:
@@ -196,21 +157,59 @@ class MultiLabelBaseClassifier(BaseClassifier):
         # can also return just a scalar instead of a dict (return loss_val)
         return output
 
-    def write_outputs(self, texts, y_score, labels, metadata=None, mode: str = "test"):
+    def plot_explanations(self, outputs, mode):
+        def model_predict_function(x):
+            inputs = self.data.tokenizer.tokenizer(
+                x.tolist(), return_tensors="pt", padding=True, truncation=True
+            )
+            inputs = {k: v.to(self.device) for k, v in inputs.items()}
+            outputs = self.model(**inputs)[0]
+            scores = torch.nn.Softmax(dim=-1)(outputs)
+            return torch.logit(scores).detach().cpu().numpy()
+
+        explainer = shap.Explainer(
+            model_predict_function, self.data.tokenizer.tokenizer, output_names=self.args.label
+        )
+        texts = self._get_flattened_outputs_for_field(outputs, "text")
+        logger.info(f"Generating shap values for {len(texts)} samples ...")
+        shap_values = explainer(texts)
+        for label in shap_values.output_names:
+            shap.plots.bar(
+                shap_values[:, :, label].mean(0), show=False, order=shap.Explanation.argsort.flip
+            )
+            if self.logger:
+                self.logger.log_image(
+                    key=f"{mode}/shap/{label}",
+                    images=[plt.gcf()],
+                )
+                plt.close()
+
+    def write_sample_outputs(self, outputs: List[Dict], mode: str = "test"):
+        texts = self._get_flattened_outputs_for_field(outputs, "text")
+        y_score = self._get_flattened_outputs_for_field(outputs, "logits")
+        y_score = 1 / (1 + np.exp(-y_score))
+        labels = self._get_flattened_outputs_for_field(outputs, "target")
+
         score_df = pd.DataFrame(
-            y_score, columns=[f"score_{label_name}" for label_name in self.label_names]
+            y_score, columns=[f"score_{label_name}" for label_name in self.args.label]
         )
         true_df = pd.DataFrame(
-            labels, columns=[f"true_{label_name}" for label_name in self.label_names]
+            labels, columns=[f"true_{label_name}" for label_name in self.args.label]
         )
 
-        text_df = pd.DataFrame({"text": texts, "metadata": metadata})
+        text_df = pd.DataFrame({"text": texts})
         df = pd.concat((text_df, score_df, true_df), axis=1)
         df = df.sample(min(10000, df.shape[0]))
-        logger.info(f"Saving samples ... \n {df}")
-        df.to_csv(os.path.join(self.hparams.output_dir, f"{mode}_sample.csv"), index=False)
+        logger.info(f"Saving {mode} samples to {self.args.output_dir} ... \n {df}")
+        df.to_csv(os.path.join(self.args.output_dir, f"{mode}_sample.csv"), index=False)
 
-    def _create_confusion_matrices(self, outputs: Dict) -> Dict:
+    def _get_flattened_outputs_for_field(self, outputs: List[Dict], field_name: str) -> List[Dict]:
+        nested_values = [output[field_name] for output in outputs]
+        if hasattr(nested_values[0], "device"):
+            return np.vstack(np.array([v.cpu().numpy() for v in nested_values]))
+        return np.array([item for sublist in nested_values for item in sublist])
+
+    def create_confusion_matrices(self, outputs: Dict, mode: str) -> Dict:
         """[summary]
 
         Args:
@@ -219,6 +218,9 @@ class MultiLabelBaseClassifier(BaseClassifier):
         Returns:
             Dict: [description]
         """
+        if self.args.disable_logging:
+            return
+
         cms = {}
         for label_idx, label in enumerate(self.data.label_encoder.vocab):
             logits = (
@@ -239,4 +241,8 @@ class MultiLabelBaseClassifier(BaseClassifier):
                 y_true=trg, preds=pred, class_names=["Not_{}".format(label), label]
             )
             cms[label] = cm
-        return cms
+
+        for label_name, confusion_matrix in cms.items():
+            self.logger.experiment.log(
+                {f"{mode}/epoch_confusion_matrix/{label_name}": confusion_matrix}
+            )
