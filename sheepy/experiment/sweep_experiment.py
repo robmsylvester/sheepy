@@ -12,11 +12,16 @@ from sheepy.experiment.base_experiment import Experiment
 
 
 class SweepExperiment(Experiment):
-    def __init__(self, args: Namespace, data_module_cls: pl.LightningDataModule, model_cls: pl.LightningModule):
+    def __init__(
+        self,
+        args: Namespace,
+        data_module_cls: pl.LightningDataModule,
+        model_cls: pl.LightningModule,
+    ):
         super().__init__(args)
         self.data_module_cls = data_module_cls
         self.model_cls = model_cls
-        set_start_method('spawn', force=True)  # multiprocessing necessity
+        set_start_method("spawn", force=True)  # multiprocessing necessity
         self.logger = None
 
     def _build_sweep_trainer(self):
@@ -26,18 +31,18 @@ class SweepExperiment(Experiment):
         return pl.Trainer(
             callbacks=self.custom_callbacks,
             logger=self.wandb,
-            gradient_clip_val=self.args.hparams['gradient_clip_val'],
+            gradient_clip_val=self.args.hparams["gradient_clip_val"],
             gpus=self.args.n_gpu,
             log_gpu_memory="all",
             deterministic=True,
-            check_val_every_n_epoch=self.args.validation['check_val_every_n_epoch'],
+            check_val_every_n_epoch=self.args.validation["check_val_every_n_epoch"],
             fast_dev_run=False,
-            accumulate_grad_batches=self.args.hparams['accumulate_grad_batches'],
-            max_epochs=self.args.hparams['num_epochs'],
-            val_check_interval=self.args.validation['val_check_interval'],
-            accelerator='dp',
-            amp_level='O1',
-            precision=self.args.precision
+            accumulate_grad_batches=self.args.hparams["accumulate_grad_batches"],
+            max_epochs=self.args.hparams["num_epochs"],
+            val_check_interval=self.args.validation["val_check_interval"],
+            accelerator="dp",
+            amp_level="O1",
+            precision=self.args.precision,
         )
 
     def sweep_iteration(self):
@@ -66,6 +71,5 @@ class SweepExperiment(Experiment):
         """
         Runs a sweep or hyperparameters that can be visualized in the browser.
         """
-        sweep_id = wandb.sweep(
-            self.args.sweep, project=self.args.experiment_name)
+        sweep_id = wandb.sweep(self.args.sweep, project=self.args.experiment_name)
         wandb.agent(sweep_id, function=self.sweep_iteration)

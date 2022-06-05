@@ -13,7 +13,8 @@ from sheepy.common.logger import get_std_out_logger
 
 # TODO - add restore from checkpoint
 
-class Experiment():
+
+class Experiment:
     def __init__(self, args: argparse.Namespace, logger=None, evaluation=False):
         self.evaluation = evaluation
         self.logger = logger if logger is not None else get_std_out_logger()
@@ -39,7 +40,12 @@ class Experiment():
             self.args.hparams = config["hparams"]
             self.args.metrics = config["metrics"]
 
-    def prepare_trainer(self, data_module_cls: pl.LightningDataModule, model_cls: pl.LightningModule, pretrained_experiment_folder: str = None):
+    def prepare_trainer(
+        self,
+        data_module_cls: pl.LightningDataModule,
+        model_cls: pl.LightningModule,
+        pretrained_experiment_folder: str = None,
+    ):
         """
         The prepare function is called on the experiment class to set up the two pytorch lightning abstractions used by the framework,
         namely, the data module, and the model module. According to other experiment args, various other things will get set up to track
@@ -70,7 +76,9 @@ class Experiment():
         self._prepare_logger()
 
     # TODO: merge this method with prepare_trainer()
-    def prepare_evaluator(self, data_module_cls: pl.LightningDataModule, model_cls: pl.LightningModule):
+    def prepare_evaluator(
+        self, data_module_cls: pl.LightningDataModule, model_cls: pl.LightningModule
+    ):
         """Runs through all the module loading and checks to get the model ready to run evaluation.
 
         Args:
@@ -83,8 +91,7 @@ class Experiment():
         """
         if self.args.pretrained_dir:
             load_from_checkpoint = True
-            self.logger.info("Loading model from {}".format(
-                self.args.pretrained_dir))
+            self.logger.info("Loading model from {}".format(self.args.pretrained_dir))
         else:
             load_from_checkpoint = False
 
@@ -105,19 +112,27 @@ class Experiment():
             self.data.label_encoder = model_data.label_encoder
             self.data.train_class_sizes = model_data.train_class_sizes
 
-            if hasattr(model_data, 'pos_weights'):
+            if hasattr(model_data, "pos_weights"):
                 self.data.pos_weights = model_data.pos_weights
 
             # Then the model from the checkpoint. Note that in pytl v1 the 'checkpoints' subdirectory was removed
-            checkpoints = [os.path.join(self.args.pretrained_dir, f) for f in os.listdir(
-                self.args.pretrained_dir) if f.endswith(".ckpt")]
+            checkpoints = [
+                os.path.join(self.args.pretrained_dir, f)
+                for f in os.listdir(self.args.pretrained_dir)
+                if f.endswith(".ckpt")
+            ]
             if len(checkpoints) != 1:
-                raise ValueError("Your model directory {} should have exactly one .ckpt file in it. Instead, there are {}".format(
-                    self.args.pretrained_dir, len(checkpoints)))
+                raise ValueError(
+                    "Your model directory {} should have exactly one .ckpt file in it. Instead, there are {}".format(
+                        self.args.pretrained_dir, len(checkpoints)
+                    )
+                )
 
             # TODO - double check this -1 behavior on overfit model
             self.checkpoint_path = checkpoints[0]
-            self.model = model_cls.load_from_checkpoint(self.checkpoint_path, args=model_args, data=self.data)
+            self.model = model_cls.load_from_checkpoint(
+                self.checkpoint_path, args=model_args, data=self.data
+            )
 
             self.model.live_eval_mode = self.args.evaluate_live
 
@@ -142,20 +157,33 @@ class Experiment():
 
     def _build_wandb_logger(self):
         """Helper function to dump weights and biases files into a model's directory"""
-        logger = WandbLogger(name=self.args.experiment_name,
-                             save_dir=self.args.output_dir,
-                             project=self.args.project_name,
-                             version=self.args.version)
+        logger = WandbLogger(
+            name=self.args.experiment_name,
+            save_dir=self.args.output_dir,
+            project=self.args.project_name,
+            version=self.args.version,
+        )
         self.wandb = logger
 
     def _prepare_logger(self):
         """Helper function that sets the verbosity of logging in weights and biases and pytorch"""
-        if self.args.validation['gradient_log_steps'] is not None and self.args.validation['param_log_steps'] is not None:
-            log_steps = min(self.args.validation['gradient_log_steps'], self.args.validation['param_log_steps'])
-        elif self.args.validation['gradient_log_steps'] is None and self.args.validation['param_log_steps'] is not None:
-            log_steps = self.args.validation['param_log_steps']
-        elif self.args.validation['gradient_log_steps'] is not None and self.args.validation['param_log_steps'] is None:
-            log_steps = self.args.validation['gradient_log_steps']
+        if (
+            self.args.validation["gradient_log_steps"] is not None
+            and self.args.validation["param_log_steps"] is not None
+        ):
+            log_steps = min(
+                self.args.validation["gradient_log_steps"], self.args.validation["param_log_steps"]
+            )
+        elif (
+            self.args.validation["gradient_log_steps"] is None
+            and self.args.validation["param_log_steps"] is not None
+        ):
+            log_steps = self.args.validation["param_log_steps"]
+        elif (
+            self.args.validation["gradient_log_steps"] is not None
+            and self.args.validation["param_log_steps"] is None
+        ):
+            log_steps = self.args.validation["gradient_log_steps"]
         else:
             log_steps = None
         # TODO - self.log_hyperparams and self.log_metrics should be called here too eventually
@@ -171,19 +199,23 @@ class Experiment():
         """
         self.checkpoint_callback = self._build_checkpoint_callback()
         self.lr_monitor_callback = LearningRateMonitor()
-        self.custom_callbacks = [self.checkpoint_callback, self.lr_monitor_callback, RichProgressBar()]
-        if self.args.hparams['early_stop_enabled']:
+        self.custom_callbacks = [
+            self.checkpoint_callback,
+            self.lr_monitor_callback,
+            RichProgressBar(),
+        ]
+        if self.args.hparams["early_stop_enabled"]:
             self.early_stop_callback = self._build_early_stop_callback()
             self.custom_callbacks.append(self.early_stop_callback)
 
     def _build_early_stop_callback(self):
         """Helper function to wrap around PyTL's early-stopping function, around validation loss only at this moment"""
         early_stop = EarlyStopping(
-            monitor=self.args.validation['metric'],
-            min_delta=0.,
+            monitor=self.args.validation["metric"],
+            min_delta=0.0,
             patience=3,
             verbose=False,
-            mode=self.args.validation['metric_goal']
+            mode=self.args.validation["metric_goal"],
         )
         return early_stop
 
@@ -193,8 +225,8 @@ class Experiment():
             dirpath=self.args.output_dir,
             save_top_k=1,
             verbose=True,
-            monitor=self.args.validation['metric'],
-            mode=self.args.validation['metric_goal'],
+            monitor=self.args.validation["metric"],
+            mode=self.args.validation["metric_goal"],
         )
         return checkpoint_callback
 
@@ -202,17 +234,17 @@ class Experiment():
         self.trainer = pl.Trainer(
             callbacks=self.custom_callbacks,
             logger=self.wandb,
-            gradient_clip_val=self.args.hparams['gradient_clip_val'],
+            gradient_clip_val=self.args.hparams["gradient_clip_val"],
             gpus=self.args.n_gpu,
             log_gpu_memory="all",
             deterministic=True,
-            check_val_every_n_epoch=self.args.validation['check_val_every_n_epoch'],
+            check_val_every_n_epoch=self.args.validation["check_val_every_n_epoch"],
             fast_dev_run=False,
-            accumulate_grad_batches=self.args.hparams['accumulate_grad_batches'],
-            max_epochs=self.args.hparams['num_epochs'],
-            val_check_interval=self.args.validation['val_check_interval'],
+            accumulate_grad_batches=self.args.hparams["accumulate_grad_batches"],
+            max_epochs=self.args.hparams["num_epochs"],
+            val_check_interval=self.args.validation["val_check_interval"],
             strategy="dp" if self.args.n_gpu >= 2 else None,
-            precision=self.args.precision
+            precision=self.args.precision,
         )
 
     def train(self):
@@ -248,20 +280,27 @@ class Experiment():
 
             if not args.evaluate_live:
                 if not args.evaluate_batch_file:
-                    raise ArgumentError("When running in batch evaluation mode, you must provide a text file to the evaluate_batch_file argument")
+                    raise ArgumentError(
+                        "When running in batch evaluation mode, you must provide a text file to the evaluate_batch_file argument"
+                    )
                 if not os.path.exists(args.evaluate_batch_file):
-                    raise ArgumentError("Cannot find evaluate_batch_file in file system located at {}".format(args.evaluate_batch_file))
+                    raise ArgumentError(
+                        "Cannot find evaluate_batch_file in file system located at {}".format(
+                            args.evaluate_batch_file
+                        )
+                    )
 
             if args.experiment_name is None or args.output_key is None:
                 raise ArgumentError(
-                    "You must pass a pretrained experiment name and the output column name or dict key as output_key.")
+                    "You must pass a pretrained experiment name and the output column name or dict key as output_key."
+                )
 
             if args.pretrained_dir is None:
                 args.pretrained_dir = os.path.join(
-                    args.output_dir, args.project_name, "models", args.experiment_name)
+                    args.output_dir, args.project_name, "models", args.experiment_name
+                )
 
-            args.output_dir = os.path.join(
-                args.pretrained_dir, 'eval')
+            args.output_dir = os.path.join(args.pretrained_dir, "eval")
 
             args.output_prediction_path = os.path.join(args.output_dir, "batch_predictions.csv")
 
@@ -270,10 +309,12 @@ class Experiment():
         else:
             if args.experiment_name is None:
                 args.experiment_name = "{}bit_{}_v{}".format(
-                    args.precision, args.time, args.version)
+                    args.precision, args.time, args.version
+                )
 
             args.output_dir = os.path.join(
-                args.output_dir, args.project_name, "models", args.experiment_name)
+                args.output_dir, args.project_name, "models", args.experiment_name
+            )
 
         if not os.path.exists(args.output_dir):
             os.makedirs(args.output_dir)
@@ -282,13 +323,21 @@ class Experiment():
 
     @classmethod
     def add_model_specific_args(cls, parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
-        """ Return the argument pasrser with necessary args for this class appended to it """
-        parser.add_argument("--project_name", type=str, default="dummy_project",
-                            help="A custom project name. Will house all experiments under this project directory. First level under the output dir")
-        parser.add_argument("--experiment_name", type=str, default=None,
-                            help="A custom experiment name. Otherwise it will be be set to {16/32}bit_{time}_{version}, but give it a name/ Second level under the output dir")
-        parser.add_argument("--version", type=str, default="0",
-                            help="Version of model. Defaults to 0")
-        parser.add_argument("--verbose", action="store_true",
-                            help="Enable for debug-level logging")
+        """Return the argument pasrser with necessary args for this class appended to it"""
+        parser.add_argument(
+            "--project_name",
+            type=str,
+            default="dummy_project",
+            help="A custom project name. Will house all experiments under this project directory. First level under the output dir",
+        )
+        parser.add_argument(
+            "--experiment_name",
+            type=str,
+            default=None,
+            help="A custom experiment name. Otherwise it will be be set to {16/32}bit_{time}_{version}, but give it a name/ Second level under the output dir",
+        )
+        parser.add_argument(
+            "--version", type=str, default="0", help="Version of model. Defaults to 0"
+        )
+        parser.add_argument("--verbose", action="store_true", help="Enable for debug-level logging")
         return parser

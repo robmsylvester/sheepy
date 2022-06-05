@@ -17,10 +17,10 @@ setup(
     name=PACKAGE_NAME,
     version=VERSION,
     long_description=README,
-    description='Experiment-tracking wrapper around PyTorch Lightning, Weights & Biases, Pandas, and Huggingface Trasformers that aims at rapid experimentation for common text classification tasks using transformers',
-    author='Rob Sylvester',
-    author_email='robmsylvester@gmail.com',
-    python_requires='>=3.8,<3.10',
+    description="Experiment-tracking wrapper around PyTorch Lightning, Weights & Biases, Pandas, and Huggingface Trasformers that aims at rapid experimentation for common text classification tasks using transformers",
+    author="Rob Sylvester",
+    author_email="robmsylvester@gmail.com",
+    python_requires=">=3.8,<3.10",
     install_requires=[
         "pandas>=1.1.1",
         "torch>=1.6.0",
@@ -38,5 +38,5 @@ setup(
         "torchmetrics==0.6.0",
         "rich>=12.4.1",
     ],
-    packages=find_packages()
+    packages=find_packages(),
 )

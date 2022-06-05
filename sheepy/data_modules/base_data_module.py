@@ -15,22 +15,26 @@ from sheepy.nlp.tokenizer import Tokenizer
 
 
 class BaseDataModule(LightningDataModule):
-
     def __init__(self, args: argparse.Namespace):
         super().__init__()
         self.logger = get_std_out_logger()
         self.args = args
         self._set_tune_params()
-        self.sample_id_col = 'sample_id'
+        self.sample_id_col = "sample_id"
         self.evaluate = self.args.evaluate  # readability
         self.label_col = self.args.hparams["label"]  # readability
         self.text_col = self.args.hparams["text"]  # readability
 
-        self._train_dataset, self._val_dataset, self._test_dataset, self._predict_dataset = None, None, None, None
+        self._train_dataset, self._val_dataset, self._test_dataset, self._predict_dataset = (
+            None,
+            None,
+            None,
+            None,
+        )
         if not os.path.exists(self.args.output_dir):
             os.makedirs(self.args.output_dir)
 
-        self.tokenizer = Tokenizer(self.args.hparams['encoder_model'])
+        self.tokenizer = Tokenizer(self.args.hparams["encoder_model"])
 
     def _set_tune_params(self):
         # TODO - we may want to support iterating through other config than hparams, such as the encoder_model
@@ -39,7 +43,9 @@ class BaseDataModule(LightningDataModule):
             for k, v in wandb.config.items():
                 if k in self.args.hparams:
                     self.args.hparams[k] = v
-                    self.logger.debug("Setting data module hyperparameter {} to sweep value {}".format(k, v))
+                    self.logger.debug(
+                        "Setting data module hyperparameter {} to sweep value {}".format(k, v)
+                    )
 
     def prepare_data(self):
         raise NotImplementedError("This must be implemented by child class.")
@@ -78,16 +84,19 @@ class BaseDataModule(LightningDataModule):
         """
         if self.text_col is None:
             raise NotImplementedError(
-                "To use the default collate function you need a text column.\nAlternatively, write one for the x_cols to prepare your data")
+                "To use the default collate function you need a text column.\nAlternatively, write one for the x_cols to prepare your data"
+            )
 
         # TODO - turn this into always using windowed text collate function
-        return single_text_collate_function(sample,
-                                            self.text_col,
-                                            self.label_col,
-                                            self.sample_id_col,
-                                            self.tokenizer,
-                                            self.label_encoder,
-                                            evaluate=self.evaluate)
+        return single_text_collate_function(
+            sample,
+            self.text_col,
+            self.label_col,
+            self.sample_id_col,
+            self.tokenizer,
+            self.label_encoder,
+            evaluate=self.evaluate,
+        )
 
     def _write_predictions(self, outputs: List[dict]) -> None:
         all_columns = self.label_encoder.vocab
@@ -99,16 +108,26 @@ class BaseDataModule(LightningDataModule):
             sample_ids = pd.Series(output["sample_id_keys"].cpu().squeeze()).astype("int")
             prediction_softmax = torch.nn.Softmax(dim=1)(prediction_logits)
             batch_prediction_df = pd.DataFrame(prediction_softmax).astype("float")
-            batch_prediction_df = batch_prediction_df.rename(columns={label_idx: label for label_idx, label in enumerate(self.label_encoder.vocab)})
+            batch_prediction_df = batch_prediction_df.rename(
+                columns={
+                    label_idx: label for label_idx, label in enumerate(self.label_encoder.vocab)
+                }
+            )
             batch_prediction_df[self.sample_id_col] = sample_ids
-            all_batch_predictions_df = all_batch_predictions_df.append(batch_prediction_df, ignore_index=True)
+            all_batch_predictions_df = all_batch_predictions_df.append(
+                batch_prediction_df, ignore_index=True
+            )
 
         all_batch_predictions_df = all_batch_predictions_df.reset_index(drop=True)
         cols = all_batch_predictions_df.columns.tolist()
         cols = cols[-1:] + cols[:-1]
         all_batch_predictions_df = all_batch_predictions_df[cols]
 
-        self.logger.info("Writing CSV file with {} predictions to {}".format(all_batch_predictions_df.shape[0], self.args.output_prediction_path))
+        self.logger.info(
+            "Writing CSV file with {} predictions to {}".format(
+                all_batch_predictions_df.shape[0], self.args.output_prediction_path
+            )
+        )
         all_batch_predictions_df.to_csv(self.args.output_prediction_path)
 
     def _verify_dataset_record_type(self, dataset: Union[pd.DataFrame, List[Dict]]) -> List[Dict]:
@@ -139,7 +158,11 @@ class BaseDataModule(LightningDataModule):
         with open(filepath, "r") as f:
             for idx, line in enumerate(f):
                 line = line.rstrip()
-                prepared_input = {self.text_col: line, self.label_col: None, self.sample_id_col: idx}
+                prepared_input = {
+                    self.text_col: line,
+                    self.label_col: None,
+                    self.sample_id_col: idx,
+                }
                 prepared_inputs.append(prepared_input)
         return prepared_inputs
 
@@ -149,58 +172,60 @@ class BaseDataModule(LightningDataModule):
         return [prepared_input]
 
     def train_dataloader(self) -> DataLoader:
-        """ Function that loads the train set. """
+        """Function that loads the train set."""
         self._train_dataset = self._verify_dataset_record_type(self._train_dataset)
         return DataLoader(
             dataset=self._train_dataset,
             sampler=RandomSampler(self._train_dataset),
-            batch_size=self.args.hparams['batch_size'],
+            batch_size=self.args.hparams["batch_size"],
             collate_fn=self.prepare_sample,
-            num_workers=self.args.hparams['loader_workers'],
+            num_workers=self.args.hparams["loader_workers"],
         )
 
     def val_dataloader(self) -> DataLoader:
-        """ Function that loads the validation set. """
+        """Function that loads the validation set."""
         self._val_dataset = self._verify_dataset_record_type(self._val_dataset)
         return DataLoader(
             dataset=self._val_dataset,
-            batch_size=self.args.hparams['batch_size'],
+            batch_size=self.args.hparams["batch_size"],
             collate_fn=self.prepare_sample,
-            num_workers=self.args.hparams['loader_workers'],
+            num_workers=self.args.hparams["loader_workers"],
         )
 
     def test_dataloader(self) -> DataLoader:
-        """ Function that loads the test set. """
+        """Function that loads the test set."""
         self._test_dataset = self._verify_dataset_record_type(self._test_dataset)
         return DataLoader(
             dataset=self._test_dataset,
-            batch_size=self.args.hparams['batch_size'],
+            batch_size=self.args.hparams["batch_size"],
             collate_fn=self.prepare_sample,
-            num_workers=self.args.hparams['loader_workers'],
+            num_workers=self.args.hparams["loader_workers"],
         )
 
     def predict_batch_dataloader(self) -> DataLoader:
-        """ Function that loads batch prediction by processing lines in a text file"""
+        """Function that loads batch prediction by processing lines in a text file"""
         self._predict_dataset = self._load_text_from_text_file(self.args.evaluate_batch_file)
         return DataLoader(
             dataset=self._predict_dataset,
-            batch_size=self.args.hparams['batch_size'],
+            batch_size=self.args.hparams["batch_size"],
             collate_fn=self.prepare_sample,
-            num_workers=self.args.hparams['loader_workers'],
+            num_workers=self.args.hparams["loader_workers"],
         )
 
     def predict_live_dataloader(self) -> DataLoader:
-        """ Function that loads the batch prediction set by processing a single piece of text input to the shell """
+        """Function that loads the batch prediction set by processing a single piece of text input to the shell"""
         self._predict_dataset = self._load_text_from_raw_input()
         return DataLoader(
             dataset=self._predict_dataset,
-            batch_size=self.args.hparams['batch_size'],
+            batch_size=self.args.hparams["batch_size"],
             collate_fn=self.prepare_sample,
-            num_workers=self.args.hparams['loader_workers'],
+            num_workers=self.args.hparams["loader_workers"],
         )
 
     def _build_label_encoder(self):
-        self.label_encoder = LabelEncoder.initializeFromDataframe(self._train_dataset, self.args.hparams["label"])
+        self.label_encoder = LabelEncoder.initializeFromDataframe(
+            self._train_dataset, self.args.hparams["label"]
+        )
         self.logger.info("Label Encoder Vocab: {}".format(self.label_encoder.vocab))
 
     # TODO - probably move to csv, generalize one
@@ -208,7 +233,7 @@ class BaseDataModule(LightningDataModule):
         self.train_class_sizes = None  # Write this
         raise NotImplementedError("This must be implemented by child class.")
 
-    @ classmethod
+    @classmethod
     def add_model_specific_args(cls, parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
-        """ Return the argument parser with necessary args for this class appended to it """
+        """Return the argument parser with necessary args for this class appended to it"""
         return parser

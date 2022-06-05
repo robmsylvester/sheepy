@@ -17,12 +17,9 @@ from torchmetrics import (
 from sheepy.common.logger import get_std_out_logger
 
 
-#TODO - need to add LabelEncoder/dict on here if user passes pos_label argument in metrics so we can decode it to get its integer representation
-class ClassificationMetrics():
-    def __init__(self,
-        labels: List[Any],
-        config: dict,
-        logger=None):
+# TODO - need to add LabelEncoder/dict on here if user passes pos_label argument in metrics so we can decode it to get its integer representation
+class ClassificationMetrics:
+    def __init__(self, labels: List[Any], config: dict, logger=None):
         """A class to help abstract the classification metrics that are reported and sent to PyTorch Lightning's
         validation epoch callbacks as well as Weights and Biases visualizations.
 
@@ -36,14 +33,14 @@ class ClassificationMetrics():
         self.config = config
 
         self.torchmetrics_map = {
-            'auroc': AUROC,
-            'f1': F1,
-            'precision': Precision,
-            'recall': Recall,
-            'accuracy': Accuracy,
-            'roc': ROC,
-            'average_precision': AveragePrecision,
-            'auc': AUC,
+            "auroc": AUROC,
+            "f1": F1,
+            "precision": Precision,
+            "recall": Recall,
+            "accuracy": Accuracy,
+            "roc": ROC,
+            "average_precision": AveragePrecision,
+            "auc": AUC,
         }
 
         self._create_metrics()
@@ -55,34 +52,46 @@ class ClassificationMetrics():
             List[Metric]: [description]
         """
         tracked_metrics = []
-        for metric_dict in self.config['tracked_metrics']:
-            if metric_dict['name'] in self.torchmetrics_map:
-                metric_class = self.torchmetrics_map[metric_dict['name']]
+        for metric_dict in self.config["tracked_metrics"]:
+            if metric_dict["name"] in self.torchmetrics_map:
+                metric_class = self.torchmetrics_map[metric_dict["name"]]
 
                 args_dict = metric_dict.copy()
 
-                if not self.config["multilabel"] and self.num_labels > 2 and args_dict['average'] == 'micro':
-                    raise ValueError("micro cannot be used as an averaging technique for multiclass metrics. Label {} uses micro in this multiclass metric. See https://torchmetrics.readthedocs.io/en/latest/references/modules.html".format(args_dict['name']))
+                if (
+                    not self.config["multilabel"]
+                    and self.num_labels > 2
+                    and args_dict["average"] == "micro"
+                ):
+                    raise ValueError(
+                        "micro cannot be used as an averaging technique for multiclass metrics. Label {} uses micro in this multiclass metric. See https://torchmetrics.readthedocs.io/en/latest/references/modules.html".format(
+                            args_dict["name"]
+                        )
+                    )
 
-                del args_dict['name']
-                args_dict['num_classes'] = self.num_labels
-                args_dict['dist_sync_on_step'] = True
+                del args_dict["name"]
+                args_dict["num_classes"] = self.num_labels
+                args_dict["dist_sync_on_step"] = True
 
                 metric = metric_class(**args_dict)
                 tracked_metrics.append(metric)
             else:
-                self.logger.warn("Metric {} not found and will be ignored. See classification_metrics.py and verify that your metric is mapped to a torchmetrics class")
+                self.logger.warn(
+                    "Metric {} not found and will be ignored. See classification_metrics.py and verify that your metric is mapped to a torchmetrics class"
+                )
         return tracked_metrics
 
     def _create_metrics(self):
         """Instantiates the auroc, f1, precision, and recall based upon the initialization args for the class"""
         tracked_metrics = self._get_metric_list()
         self.metric_collection = MetricCollection(tracked_metrics)
-        self.train_metrics = self.metric_collection.clone(prefix='train/')
-        self.validation_metrics = self.metric_collection.clone(prefix='val/')
-        self.test_metrics = self.metric_collection.clone(prefix='test/')
+        self.train_metrics = self.metric_collection.clone(prefix="train/")
+        self.validation_metrics = self.metric_collection.clone(prefix="val/")
+        self.test_metrics = self.metric_collection.clone(prefix="test/")
 
-    def compute_metrics(self, logits: torch.Tensor, labels: torch.Tensor, stage: str) -> torch.Tensor:
+    def compute_metrics(
+        self, logits: torch.Tensor, labels: torch.Tensor, stage: str
+    ) -> torch.Tensor:
         if stage == "train" or stage == "train_epoch":
             out = self.train_metrics(logits.cpu(), labels.cpu())
         elif stage == "val" or stage == "val_epoch":
@@ -90,5 +99,9 @@ class ClassificationMetrics():
         elif stage == "test" or stage == "test_epoch":
             out = self.test_metrics(logits.cpu(), labels.cpu())
         else:
-            raise ValueError("stage to compute metrics must be either 'train', 'val', or 'test', 'train_epoch', 'val_epoch', or 'test_epoch'. Instead, passed {}".format(stage))
+            raise ValueError(
+                "stage to compute metrics must be either 'train', 'val', or 'test', 'train_epoch', 'val_epoch', or 'test_epoch'. Instead, passed {}".format(
+                    stage
+                )
+            )
         return out

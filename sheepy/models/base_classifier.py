@@ -39,15 +39,14 @@ class BaseClassifier(pl.LightningModule):
 
     def _build_model(self):
         raise NotImplementedError(
-            "_build_model() has not been implemented. You must override this in your classifier")
+            "_build_model() has not been implemented. You must override this in your classifier"
+        )
 
     def _build_metrics(self) -> None:
         """Builds out the basic metrics for a classifier. This needs to be implemented in your classifier by
         instantiating the ClassificationMetrics class
         """
-        self.metrics = ClassificationMetrics(
-            self.data.label_encoder.vocab,
-            self.args.metrics)
+        self.metrics = ClassificationMetrics(self.data.label_encoder.vocab, self.args.metrics)
 
     def _get_class_weights(self):
         """
@@ -57,38 +56,40 @@ class BaseClassifier(pl.LightningModule):
         weights = [None] * self.data.label_encoder.vocab_size
 
         # Normalize the ratios
-        scale_factor = 1.0/sum(self.data.train_class_sizes.values())
+        scale_factor = 1.0 / sum(self.data.train_class_sizes.values())
         train_class_ratios = self.data.train_class_sizes
         for class_name, num_samples in self.data.train_class_sizes.items():
-            train_class_ratios[class_name] = num_samples*scale_factor
+            train_class_ratios[class_name] = num_samples * scale_factor
 
         # and now invert each value to get its weight
         for class_name, ratio in train_class_ratios.items():
             label_index = self.data.label_encoder.encode(class_name)
-            weights[label_index] = 1./ratio
+            weights[label_index] = 1.0 / ratio
 
         print("\nClass weights:\n{}".format(weights))
         return torch.tensor(weights)
 
     def _build_loss(self):
-        """ Initializes the loss function/s."""
+        """Initializes the loss function/s."""
         self.class_weights = self._get_class_weights()
         self._loss = torch.nn.CrossEntropyLoss(weight=self.class_weights)
 
     def configure_optimizers(self):
-        """ Sets different Learning rates for different parameter groups. """
+        """Sets different Learning rates for different parameter groups."""
         raise NotImplementedError(
-            "configure_optimizers() has not been implemented. You must override this in your classifier")
+            "configure_optimizers() has not been implemented. You must override this in your classifier"
+        )
 
     def forward(self, tokens, lengths) -> dict:
-        """ Usual pytorch forward function.
+        """Usual pytorch forward function.
         :param tokens: text sequences [batch_size x src_seq_len]
         :param lengths: source lengths [batch_size]
         Returns:
             Dictionary with model outputs (e.g: logits)
         """
         raise NotImplementedError(
-            "forward() has not been implemented. You must override this in your classifier")
+            "forward() has not been implemented. You must override this in your classifier"
+        )
 
     def loss(self, predictions: dict, targets: dict) -> torch.tensor:
         """
@@ -118,13 +119,15 @@ class BaseClassifier(pl.LightningModule):
         logits = model_out["logits"]
         labels = targets["labels"]
 
-        self.log('train/loss', loss_train, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        self.log("train/loss", loss_train, on_step=True, on_epoch=True, prog_bar=True, logger=True)
 
-        output = OrderedDict({
-            "loss": loss_train, #we would normally want to name this 'train/loss', but pytorch lightning wants it to be 'loss'
-            "logits": logits,
-            "target": labels,
-        })
+        output = OrderedDict(
+            {
+                "loss": loss_train,  # we would normally want to name this 'train/loss', but pytorch lightning wants it to be 'loss'
+                "logits": logits,
+                "target": labels,
+            }
+        )
 
         return output
 
@@ -138,8 +141,12 @@ class BaseClassifier(pl.LightningModule):
         Returns:
             None
         """
-        outputs['loss'] = outputs['loss'].sum() #To backpropagate, loss needs to be aggregated across GPUs
-        output_metrics = self.metrics.compute_metrics(outputs['logits'], outputs['target'], stage='train')
+        outputs["loss"] = outputs[
+            "loss"
+        ].sum()  # To backpropagate, loss needs to be aggregated across GPUs
+        output_metrics = self.metrics.compute_metrics(
+            outputs["logits"], outputs["target"], stage="train"
+        )
         self.log_dict(output_metrics, on_step=True, on_epoch=True)
         return outputs
 
@@ -180,7 +187,9 @@ class BaseClassifier(pl.LightningModule):
         Returns:
             None
         """
-        output_metrics = self.metrics.compute_metrics(outputs['logits'], outputs['target'], stage='val')
+        output_metrics = self.metrics.compute_metrics(
+            outputs["logits"], outputs["target"], stage="val"
+        )
         self.log_dict(output_metrics, on_step=False, on_epoch=True)
         return outputs
 
@@ -220,7 +229,9 @@ class BaseClassifier(pl.LightningModule):
             dict: [description]
         """
 
-        output_metrics = self.metrics.compute_metrics(outputs['logits'], outputs['target'], stage='test')
+        output_metrics = self.metrics.compute_metrics(
+            outputs["logits"], outputs["target"], stage="test"
+        )
         self.log_dict(output_metrics, on_step=False, on_epoch=True)
         return outputs
 
@@ -230,7 +241,7 @@ class BaseClassifier(pl.LightningModule):
         self.logger.experiment.log({"test/epoch_confusion_matrix": cm})
         return None
 
-    def predict_step(self, batch: tuple, batch_idx: int, dataloader_idx: int=0):
+    def predict_step(self, batch: tuple, batch_idx: int, dataloader_idx: int = 0):
         """PyTorch Lightning function to do raw batch prediction
 
         Args:
@@ -245,12 +256,14 @@ class BaseClassifier(pl.LightningModule):
         model_out = self.forward(**inputs)
         logits = model_out["logits"]
 
-        sample_ids = ids['sample_id_keys']
+        sample_ids = ids["sample_id_keys"]
 
-        output = OrderedDict({
-            "logits": logits,
-            "sample_id_keys": sample_ids,
-        })
+        output = OrderedDict(
+            {
+                "logits": logits,
+                "sample_id_keys": sample_ids,
+            }
+        )
 
         return output
 
@@ -261,11 +274,11 @@ class BaseClassifier(pl.LightningModule):
         self.model.save_pretrained(save_path)
         self.data.tokenizer.tokenizer.save_pretrained(save_path)
 
-    #NOTE - PyTorch Lightning 1.5.1 still uses this on_ prefix for predict_step_end, but this may change soon. see here: https://github.com/PyTorchLightning/pytorch-lightning/issues/9380
+    # NOTE - PyTorch Lightning 1.5.1 still uses this on_ prefix for predict_step_end, but this may change soon. see here: https://github.com/PyTorchLightning/pytorch-lightning/issues/9380
     def on_predict_step_end(self, outputs: list) -> list:
         return outputs
 
-    #NOTE - PyTorch Lightning 1.5.1 still uses this on_ prefix for predict_epoch_end, but this may change soon. see here: https://github.com/PyTorchLightning/pytorch-lightning/issues/9380
+    # NOTE - PyTorch Lightning 1.5.1 still uses this on_ prefix for predict_epoch_end, but this may change soon. see here: https://github.com/PyTorchLightning/pytorch-lightning/issues/9380
     def on_predict_epoch_end(self, outputs: List) -> dict:
         if self.live_eval_mode:
             prediction_logits = outputs[0][0]["logits"].cpu().squeeze()
@@ -296,27 +309,23 @@ class BaseClassifier(pl.LightningModule):
         labels = targets["labels"]
         logits = model_out["logits"]
 
-        loss_key = stage + '/loss'
-        output = OrderedDict({
-            loss_key: loss_val,
-            "logits": logits,
-            "target": labels
-        })
+        loss_key = stage + "/loss"
+        output = OrderedDict({loss_key: loss_val, "logits": logits, "target": labels})
 
         return output
 
-    #TODO - move this function to classification metrics?
+    # TODO - move this function to classification metrics?
     def _create_confusion_matrix(self, outputs: list, name="Confusion Matrix"):
-        logits = torch.cat([output['logits']
-                          for output in outputs]).detach().cpu()
+        logits = torch.cat([output["logits"] for output in outputs]).detach().cpu()
         pred = torch.argmax(logits, dim=1).numpy()
-        trg = torch.cat([output['target']
-                            for output in outputs]).detach().cpu().numpy()
+        trg = torch.cat([output["target"] for output in outputs]).detach().cpu().numpy()
 
-        cm = wandb.plot.confusion_matrix(y_true=pred, preds=trg, class_names=self.data.label_encoder.vocab)
+        cm = wandb.plot.confusion_matrix(
+            y_true=pred, preds=trg, class_names=self.data.label_encoder.vocab
+        )
         return cm
 
     @classmethod
     def add_model_specific_args(cls, parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
-        """ Return the argument parser with necessary args for this class appended to it """
+        """Return the argument parser with necessary args for this class appended to it"""
         return parser
