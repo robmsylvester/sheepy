@@ -26,15 +26,15 @@ class MultiLabelBaseDataModule(BaseDataModule):
 
     def _verify_multilabel(self):
         assert isinstance(
-            self.args.hparams["label"], list
+            self.args.label, list
         ), "hyperparameter of labels must be a list for the multi label module to be used"
         assert (
-            len(self.args.hparams["label"]) > 1
+            len(self.args.label) > 1
         ), "there must be more than one label in the list for the multi label module to be used"
-        assert self.args.hparams["num_labels"] == len(
-            self.args.hparams["label"]
+        assert self.args.num_labels == len(
+            self.args.label
         ), "config sees {} labels but num_labels set to {}".format(
-            len(self.args.hparams["label"]), self.args.hparams["num_labels"]
+            len(self.args.label), self.args.num_labels
         )
 
     @classmethod

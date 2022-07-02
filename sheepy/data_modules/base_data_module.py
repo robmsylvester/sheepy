@@ -22,8 +22,8 @@ class BaseDataModule(LightningDataModule):
         self._set_tune_params()
         self.sample_id_col = "sample_id"
         self.evaluate = self.args.evaluate  # readability
-        self.label_col = self.args.hparams["label"]  # readability
-        self.text_col = self.args.hparams["text"]  # readability
+        self.label_col = self.args.label  # readability
+        self.text_col = self.args.text  # readability
 
         self._train_dataset, self._val_dataset, self._test_dataset, self._predict_dataset = (
             None,
@@ -34,15 +34,15 @@ class BaseDataModule(LightningDataModule):
         if not os.path.exists(self.args.output_dir):
             os.makedirs(self.args.output_dir)
 
-        self.tokenizer = Tokenizer(self.args.hparams["encoder_model"])
+        self.tokenizer = Tokenizer(self.args.encoder_model)
 
     def _set_tune_params(self):
         # TODO - we may want to support iterating through other config than hparams, such as the encoder_model
         if self.args.tune:
             wandb.init()  # gives access to wandb.config
             for k, v in wandb.config.items():
-                if k in self.args.hparams:
-                    self.args.hparams[k] = v
+                if k in self.args:
+                    self.args[k] = v
                     self.logger.debug(
                         "Setting data module hyperparameter {} to sweep value {}".format(k, v)
                     )
@@ -177,9 +177,9 @@ class BaseDataModule(LightningDataModule):
         return DataLoader(
             dataset=self._train_dataset,
             sampler=RandomSampler(self._train_dataset),
-            batch_size=self.args.hparams["batch_size"],
+            batch_size=self.args.batch_size,
             collate_fn=self.prepare_sample,
-            num_workers=self.args.hparams["loader_workers"],
+            num_workers=self.args.loader_workers,
         )
 
     def val_dataloader(self) -> DataLoader:
@@ -187,9 +187,9 @@ class BaseDataModule(LightningDataModule):
         self._val_dataset = self._verify_dataset_record_type(self._val_dataset)
         return DataLoader(
             dataset=self._val_dataset,
-            batch_size=self.args.hparams["batch_size"],
+            batch_size=self.args.batch_size,
             collate_fn=self.prepare_sample,
-            num_workers=self.args.hparams["loader_workers"],
+            num_workers=self.args.loader_workers,
         )
 
     def test_dataloader(self) -> DataLoader:
@@ -197,9 +197,9 @@ class BaseDataModule(LightningDataModule):
         self._test_dataset = self._verify_dataset_record_type(self._test_dataset)
         return DataLoader(
             dataset=self._test_dataset,
-            batch_size=self.args.hparams["batch_size"],
+            batch_size=self.args.batch_size,
             collate_fn=self.prepare_sample,
-            num_workers=self.args.hparams["loader_workers"],
+            num_workers=self.args.loader_workers,
         )
 
     def predict_batch_dataloader(self) -> DataLoader:
@@ -207,9 +207,9 @@ class BaseDataModule(LightningDataModule):
         self._predict_dataset = self._load_text_from_text_file(self.args.evaluate_batch_file)
         return DataLoader(
             dataset=self._predict_dataset,
-            batch_size=self.args.hparams["batch_size"],
+            batch_size=self.args.batch_size,
             collate_fn=self.prepare_sample,
-            num_workers=self.args.hparams["loader_workers"],
+            num_workers=self.args.loader_workers,
         )
 
     def predict_live_dataloader(self) -> DataLoader:
@@ -217,14 +217,14 @@ class BaseDataModule(LightningDataModule):
         self._predict_dataset = self._load_text_from_raw_input()
         return DataLoader(
             dataset=self._predict_dataset,
-            batch_size=self.args.hparams["batch_size"],
+            batch_size=self.args.batch_size,
             collate_fn=self.prepare_sample,
-            num_workers=self.args.hparams["loader_workers"],
+            num_workers=self.args.loader_workers,
         )
 
     def _build_label_encoder(self):
         self.label_encoder = LabelEncoder.initializeFromDataframe(
-            self._train_dataset, self.args.hparams["label"]
+            self._train_dataset, self.args.label
         )
         self.logger.info("Label Encoder Vocab: {}".format(self.label_encoder.vocab))
 

@@ -102,7 +102,7 @@ class BaseCSVDataModule(BaseDataModule):
             module_dict = pickle.load(fp)
             self.train_class_sizes = module_dict["class_sizes"]
             self.label_encoder = module_dict["label_encoder"]
-        assert self.label_encoder.vocab_size == self.args.hparams["num_labels"]
+        assert self.label_encoder.vocab_size == self.args.num_labels
 
     def _read_csv_directory(self, csv_path: str) -> List[pd.DataFrame]:
         """Given a directory of csv files, or a single csv file, return a list of pandas dataframes containing
@@ -154,7 +154,7 @@ class BaseCSVDataModule(BaseDataModule):
         Returns:
             pd.DataFrame: Dataframe with resamples rows added
         """
-        resample_rate = self.args.hparams.get("positive_resample_rate", 1)
+        resample_rate = self.args.positive_resample_rate
 
         if isinstance(self.label_col, str):  # single label
             label_dict = df[self.label_col].value_counts().to_dict()
@@ -215,26 +215,18 @@ class BaseCSVDataModule(BaseDataModule):
             else:
                 train_dataset, val_dataset, test_dataset = split_dataframes(
                     all_dataframes,
-                    train_ratio=self.args.hparams["train_ratio"],
-                    validation_ratio=self.args.hparams["validation_ratio"],
+                    train_ratio=self.args.train_ratio,
+                    validation_ratio=self.args.validation_ratio,
                     test_ratio=None,
                     shuffle=True,
                 )
 
             train_dataset = self._resample_positive_rows(train_dataset)
-            if "label_map" in self.args.hparams and isinstance(
-                self.args.hparams["label_map"], dict
-            ):
-                self.logger.info("Using label map {}".format(self.args.hparams["label_map"]))
-                train_dataset = map_labels(
-                    train_dataset, self.label_col, self.args.hparams["label_map"]
-                )
-                val_dataset = map_labels(
-                    val_dataset, self.label_col, self.args.hparams["label_map"]
-                )
-                test_dataset = map_labels(
-                    test_dataset, self.label_col, self.args.hparams["label_map"]
-                )
+            if "label_map" in self.args and isinstance(self.args.label_map, dict):
+                self.logger.info("Using label map {}".format(self.args.label_map))
+                train_dataset = map_labels(train_dataset, self.label_col, self.args.label_map)
+                val_dataset = map_labels(val_dataset, self.label_col, self.args.label_map)
+                test_dataset = map_labels(test_dataset, self.label_col, self.args.label_map)
 
             self.logger.info(
                 "Dataset split complete. (Total) Dataset Shapes:\n\tTrain: {}\nV\talidation: {}\n\tTest: {}".format(

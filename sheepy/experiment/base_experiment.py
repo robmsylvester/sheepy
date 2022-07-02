@@ -36,8 +36,8 @@ class Experiment:
                 setattr(self.args, k, v)
 
             self.args.sweep = config["sweep"]
-            self.args.validation = config["validation"]
-            self.args.hparams = config["hparams"]
+            self.args = Namespace(**vars(self.args), **config["validation"])
+            self.args = Namespace(**vars(self.args), **config["hparams"])
             self.args.metrics = config["metrics"]
 
     def prepare_trainer(
@@ -167,23 +167,12 @@ class Experiment:
 
     def _prepare_logger(self):
         """Helper function that sets the verbosity of logging in weights and biases and pytorch"""
-        if (
-            self.args.validation["gradient_log_steps"] is not None
-            and self.args.validation["param_log_steps"] is not None
-        ):
-            log_steps = min(
-                self.args.validation["gradient_log_steps"], self.args.validation["param_log_steps"]
-            )
-        elif (
-            self.args.validation["gradient_log_steps"] is None
-            and self.args.validation["param_log_steps"] is not None
-        ):
-            log_steps = self.args.validation["param_log_steps"]
-        elif (
-            self.args.validation["gradient_log_steps"] is not None
-            and self.args.validation["param_log_steps"] is None
-        ):
-            log_steps = self.args.validation["gradient_log_steps"]
+        if self.args.gradient_log_steps is not None and self.args.param_log_steps is not None:
+            log_steps = min(self.args.gradient_log_steps, self.args.param_log_steps)
+        elif self.args.gradient_log_steps is None and self.args.param_log_steps is not None:
+            log_steps = self.args.param_log_steps
+        elif self.args.gradient_log_steps is not None and self.args.param_log_steps is None:
+            log_steps = self.args.gradient_log_steps
         else:
             log_steps = None
         # TODO - self.log_hyperparams and self.log_metrics should be called here too eventually
@@ -204,18 +193,18 @@ class Experiment:
             self.lr_monitor_callback,
             RichProgressBar(),
         ]
-        if self.args.hparams["early_stop_enabled"]:
+        if self.args.early_stop_enabled:
             self.early_stop_callback = self._build_early_stop_callback()
             self.custom_callbacks.append(self.early_stop_callback)
 
     def _build_early_stop_callback(self):
         """Helper function to wrap around PyTL's early-stopping function, around validation loss only at this moment"""
         early_stop = EarlyStopping(
-            monitor=self.args.validation["metric"],
+            monitor=self.args.metric,
             min_delta=0.0,
             patience=3,
             verbose=False,
-            mode=self.args.validation["metric_goal"],
+            mode=self.args.metric_goal,
         )
         return early_stop
 
@@ -225,24 +214,20 @@ class Experiment:
             dirpath=self.args.output_dir,
             save_top_k=1,
             verbose=True,
-            monitor=self.args.validation["metric"],
-            mode=self.args.validation["metric_goal"],
+            monitor=self.args.metric,
+            mode=self.args.metric_goal,
         )
         return checkpoint_callback
 
     def _build_trainer(self):
-        self.trainer = pl.Trainer(
+        self.trainer = pl.Trainer.from_argparse_args(
+            self.args,
             callbacks=self.custom_callbacks,
             logger=self.wandb,
-            gradient_clip_val=self.args.hparams["gradient_clip_val"],
             gpus=self.args.n_gpu,
             log_gpu_memory="all",
             deterministic=True,
-            check_val_every_n_epoch=self.args.validation["check_val_every_n_epoch"],
             fast_dev_run=False,
-            accumulate_grad_batches=self.args.hparams["accumulate_grad_batches"],
-            max_epochs=self.args.hparams["num_epochs"],
-            val_check_interval=self.args.validation["val_check_interval"],
             strategy="dp" if self.args.n_gpu >= 2 else None,
             precision=self.args.precision,
         )

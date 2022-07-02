@@ -24,7 +24,7 @@ class SequenceClassificationModelRunner:
         df = pd.DataFrame(
             {
                 "prob": probs[0],
-                "label_name": self.config["label"],
+                "label_name": self.config["custom_args"]["label"],
             }
         )
         df = df.sort_values("prob", ascending=False)

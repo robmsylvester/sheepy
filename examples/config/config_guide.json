@@ -20,7 +20,6 @@
         "n_next_text_samples": "int, number of text windows to look before when considering windowed classifier. concatenates semantic represenntations before FC layer",
         "positive_resample_rate": "int, specifies the rate to re-sample positives in the dataset. 1 will result in not resampling. An integer n that is greater than 1 will result in (n-1) duplicates of those positives.",
         "batch_size": "int, batch size for training",
-        "num_dense_layers": "int, nunmber of dense layers for FC head after transformer classifier",
         "dense_layer_scale_factor": "float, scale factor from FC layer n to FC layer n+1",
         "save_epoch_count": "int, only now used in image model. controls minimum epoch number to start saving",
         "num_epochs": "int, number of training epochs",

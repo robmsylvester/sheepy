@@ -17,7 +17,9 @@ setup(
     name=PACKAGE_NAME,
     version=VERSION,
     long_description=README,
-    description="Experiment-tracking wrapper around PyTorch Lightning, Weights & Biases, Pandas, and Huggingface Trasformers that aims at rapid experimentation for common text classification tasks using transformers",
+    description="Experiment-tracking wrapper around PyTorch Lightning, Weights & Biases, Pandas, "
+    "and Huggingface Trasformers that aims at rapid experimentation for common text classification "
+    "tasks using transformers",
     author="Rob Sylvester",
     author_email="robmsylvester@gmail.com",
     python_requires=">=3.8,<3.10",
@@ -30,13 +32,15 @@ setup(
         "wandb==0.12.6",
         "numpy>=1.20.0",
         "scikit-learn==0.22.1",
-        "plotly==4.10.0",
+        "plotly==4.12.0",
+        "matplotlib==3.1.3",
         "pytest~=6.2.2",
         "Pillow~=8.1.0",
         "tqdm~=4.56.0",
         "setuptools~=53.0.0",
         "torchmetrics==0.6.0",
         "rich>=12.4.1",
+        "shap>=0.40.0",
     ],
     packages=find_packages(),
 )
