@@ -32,9 +32,9 @@ class TransformerClassifier(BaseClassifier):
         """Initializes the BERT model and the classification head."""
         config = AutoConfig.from_pretrained(
             self.args.encoder_model,
-            num_labels=len(self.args.label),
-            id2label={id: label for id, label in enumerate(self.args.label)},
-            label2id={label: id for id, label in enumerate(self.args.label)},
+            num_labels=len(self.data.label_encoder.vocab),
+            id2label={id: label for id, label in enumerate(self.data.label_encoder.vocab)},
+            label2id={label: id for id, label in enumerate(self.data.label_encoder.vocab)},
         )
         self.model = AutoModelForSequenceClassification.from_pretrained(
             self.args.encoder_model,
