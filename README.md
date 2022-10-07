@@ -1,15 +1,15 @@
-# Transformer Text Classification Framework
+# Sheepy
 
 ## Purpose
 
 This library consists of the skeleton for what is needed to run experiments on PyTorch Lightning and Weights and Biases,
 specifically targeted at using Huggingface transformers to perform classification. It includes examples for CSV data modules
 written for binary, multiclass, and multilabel classification, as well as multiple modular models that you should be able to
-inherit from for your task.
+inherit from for your task. It also contains code for the Shap value package to easily interpret results as well as torch metrics to be able to output what you want in weights and biases. There is example code for creating additional matplotlib visualizations included in the form of a confusion matrix.
 
 ## Installation and Preparation
 1. Clone repository
-1. Create virtual environment `python -m venv .venv`, though you should make sure your system is using python 3.8 or 3.9
+1. Create virtual environment `python -m venv .venv`. Use Python3.8 or Python3.9. 
 (This is what version of Python I used to develop this. Later versions might give you problems)
 1. Install local requirements
    `pip install --upgrade pip`
@@ -65,7 +65,7 @@ track, or which labels you want to track. In `sheepy/src/config` you will find e
 well as a thorough explanation of what they all mean in `config_guide.json`.
 There are four keys in the top-level of this config:
 1. "experiment" - unique identifiers that is used to create directories and save/load models. Also where you point to your data modules and lightning modules
-1. "metrics" - list of pytorch metrics that you care about tracking"
+1. "metrics" - list of pytorch metrics that you care about tracking.
 1. "hparams" - houses all the (hyper)parameters that you want access to in your modules. this are designed to be module-specific
 1. "validation" - helps to track which metrics you aim to optimize for, as well as help with certain callbacks (early stopping, etc.)
 1. "sweep" - holds necessary parameters for W&B sweep experiments.
@@ -91,8 +91,8 @@ lightning data modules, so anything you want to override in prepare_data(), setu
 write here.
 1. Any command line args you want to add can be done with the add_model_specific_args class method as seen in the other data module examples.
 1. Optionally create a model (lightning module) Base transformer classifiers are already written, but you might have some extra engineered features that you wish to concatenate using the augmented_transformer_classifier, for example.
-1. Make sure the name of your data module and model are registered in `sheepy/src/config/module_mappings.py` to point to your class.
-1. Create a shell script that calls the experiment class pointing at whatever arguments you need to specify. See the examples and `main.py`
+1. Make sure the name of your data module and model are referenced in some sort of runner script. `examples/main.py` is a runner script that you can use by default for your code. You can place the data module mapping in DATA_MODULE_MAPPING. You can place the model mapping in `models/__init__.py`
+1. Create a shell script that calls the experiment class pointing at whatever arguments you need to specify. See the examples and, again, reference `main.py`
 1. You'll want to register your code changes py reinstalling the setup script: `python setup.py install`
 
 ## FAQ
@@ -104,3 +104,5 @@ if you have not been using python much on that filesystem. Before the build step
 
 3. If you run into memory errors, try dropping the batch size or using a 128-output vector model
 instead of a 768-output model.
+
+4. Check CUDA and Nvidia driver compatibility with respect to not only your own system but also pytorch. If you are developing on a newer version of CUDA, you probably need a pytorch nightly build, and you may need to explicitly install that version in your virtual environment
