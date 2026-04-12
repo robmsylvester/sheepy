@@ -1,16 +1,23 @@
-import argparse
+"""Backward-compatible alias for multilabel classification.
 
-from pytorch_lightning import LightningDataModule
+The ``MultiLabelTransformerClassifier`` is now simply a ``TransformerClassifier``
+with ``task="multilabel"`` set automatically.
+"""
+from __future__ import annotations
+
+from typing import Any
+
+import lightning as L
 
 from sheepy.models.base_transformer_classifier import TransformerClassifier
-from sheepy.models.multilabel_base_classifier import MultiLabelBaseClassifier
 
 
-class MultiLabelTransformerClassifier(MultiLabelBaseClassifier, TransformerClassifier):
-    def __init__(self, args: argparse.Namespace, data: LightningDataModule) -> None:
-        super().__init__(args, data)
-
-    @classmethod
-    def add_model_specific_args(cls, parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
-        """Return the argument parser with necessary args for this class appended to it"""
-        return parser
+class MultiLabelTransformerClassifier(TransformerClassifier):
+    def __init__(
+        self,
+        config: dict[str, Any],
+        data: L.LightningDataModule,
+        **kwargs: Any,
+    ) -> None:
+        """Backward-compatible alias forcing ``task='multilabel'``."""
+        super().__init__(config, data, task="multilabel", **kwargs)

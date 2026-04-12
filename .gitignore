@@ -143,3 +143,13 @@ sheepy/outputs
 sheepy/resources/datasets/tweet_sentiment140
 sheepy/resources/datasets/toxic_comments
 sheepy/resources/datasets/personal
+
+# ruff
+.ruff_cache/
+
+# Output directories
+output/
+outputs/
+
+# MkDocs
+site/

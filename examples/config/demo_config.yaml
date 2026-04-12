@@ -1,0 +1,61 @@
+# Fast demo config — trains SMS Spam for 2 epochs with a tiny BERT.
+# Designed to finish in a few minutes on CPU.
+
+experiment:
+  project_name: sheepy_demo
+  description: "End-to-end demo: binary SMS spam classifier"
+  data_module: sms_spam_data_module
+  model: transformer_classifier
+  version: "1"
+
+hparams:
+  encoder_model: google/bert_uncased_L-2_H-128_A-2
+  batch_size: 32
+  num_epochs: 2
+  learning_rate: 3e-5
+  encoder_learning_rate: 1e-5
+  num_labels: 2
+  label: label
+  text: text
+  positive_resample_rate: 3
+  train_ratio: 0.70
+  validation_ratio: 0.15
+  test_ratio: 0.15
+  # 2+ workers avoids Lightning's "few workers" warning; persistent_workers is set in code.
+  loader_workers: 2
+  accumulate_grad_batches: 1
+  gradient_clip_val: 1.0
+  early_stop_enabled: false
+
+metrics:
+  multilabel: false
+  tracked_metrics:
+    - name: accuracy
+      average: micro
+    - name: f1
+      average: macro
+    - name: precision
+      average: macro
+    - name: recall
+      average: macro
+    - name: auroc
+      average: macro
+
+validation:
+  metric: val/F1Score
+  metric_goal: max
+  check_val_every_n_epoch: 1
+  val_check_interval: 1.0
+  gradient_log_steps: 50
+  param_log_steps: null
+
+sweep:
+  name: demo_sweep
+  method: bayes
+  metric:
+    name: val/F1Score
+    goal: maximize
+  parameters:
+    learning_rate:
+      min: 1.0e-5
+      max: 5.0e-4

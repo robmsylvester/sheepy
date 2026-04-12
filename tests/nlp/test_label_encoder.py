@@ -1,150 +1,104 @@
+"""Tests for sheepy.nlp.label_encoder — migrated from original test suite."""
+import pandas as pd
 import pytest
 import torch
-from pandas import DataFrame
 
 from sheepy.nlp.label_encoder import LabelEncoder
 
 
 @pytest.fixture
-def binary_label_encoder() -> LabelEncoder:
-    d = {
-        "num_purchases": [5, 10, 15, 20, 25, 30, 35],
-        "label": ["apple", "banana", "orange", "apple", "apple", "strawberry", "pear"],
-    }
-    df = DataFrame(data=d)
-    encoder = LabelEncoder.initializeFromDataframe(df, label_col="label")
-    return encoder
+def sample_df():
+    return pd.DataFrame({
+        "label": ["cat", "dog", "bird", "cat", "dog"],
+        "text": ["meow", "woof", "tweet", "purr", "bark"],
+    })
 
 
-@pytest.fixture
-def binary_label_encoder_unknown_exists() -> LabelEncoder:
-    d = {
-        "num_purchases": [5, 10, 15, 20, 25, 30, 35],
-        "label": ["apple", "banana", "orange", "apple", "apple", "strawberry", "pear"],
-    }
-    df = DataFrame(data=d)
-    encoder = LabelEncoder.initializeFromDataframe(df, label_col="label", unknown_label="apple")
-    return encoder
+class TestLabelEncoderInit:
+    def test_vocab_order(self):
+        enc = LabelEncoder(["a", "b", "c"])
+        assert enc.vocab == ["a", "b", "c"]
+        assert enc.vocab_size == 3
+
+    def test_with_unknown_label(self):
+        enc = LabelEncoder(["a", "b", "UNK"], unknown_label="UNK")
+        assert enc.unknown_label == "UNK"
+        assert enc.vocab_size == 3
 
 
-@pytest.fixture
-def binary_label_encoder_unknown_does_not_exist() -> LabelEncoder:
-    d = {
-        "num_purchases": [5, 10, 15, 20, 25, 30, 35],
-        "label": ["apple", "banana", "orange", "apple", "apple", "strawberry", "pear"],
-    }
-    df = DataFrame(data=d)
-    encoder = LabelEncoder.initializeFromDataframe(df, label_col="label", unknown_label="unknown")
-    return encoder
+class TestEncode:
+    def test_known_label(self):
+        enc = LabelEncoder(["spam", "ham"])
+        result = enc.encode("ham")
+        assert result.item() == 1
+
+    def test_unknown_raises(self):
+        enc = LabelEncoder(["a", "b"])
+        with pytest.raises(ValueError):
+            enc.encode("c")
+
+    def test_unknown_falls_back(self):
+        enc = LabelEncoder(["a", "b", "UNK"], unknown_label="UNK")
+        result = enc.encode("xyz")
+        assert enc.decode(result) == "UNK"
 
 
-@pytest.fixture
-def binary_label_encoder_reserved_vocab() -> LabelEncoder:
-    d = {
-        "num_purchases": [5, 10, 15, 20, 25, 30, 35],
-        "label": ["apple", "banana", "orange", "apple", "apple", "strawberry", "pear"],
-    }
-    df = DataFrame(data=d)
-    encoder = LabelEncoder.initializeFromDataframe(
-        df, label_col="label", reserved_labels=["reserved1", "reserved2"], unknown_label="unknown"
-    )
-    return encoder
+class TestBatchEncode:
+    def test_basic(self):
+        enc = LabelEncoder(["x", "y", "z"])
+        result = enc.batch_encode(["z", "x", "y"])
+        assert result.tolist() == [2, 0, 1]
 
 
-# Test the single label factory functions
-def test_binary_label_encoder_vocab(binary_label_encoder):
-    assert binary_label_encoder.vocab == ["apple", "banana", "orange", "strawberry", "pear"]
-    assert binary_label_encoder.vocab_size == 5
+class TestDecode:
+    def test_roundtrip(self):
+        enc = LabelEncoder(["alpha", "beta"])
+        for label in ["alpha", "beta"]:
+            assert enc.decode(enc.encode(label)) == label
+
+    def test_batch_roundtrip(self):
+        enc = LabelEncoder(["a", "b", "c"])
+        labels = ["c", "a", "b", "a"]
+        encoded = enc.batch_encode(labels)
+        decoded = enc.batch_decode(encoded)
+        assert decoded == labels
 
 
-def test_binary_label_encoder_unknown_vocab_exists(binary_label_encoder_unknown_exists):
-    assert binary_label_encoder_unknown_exists.vocab == [
-        "apple",
-        "banana",
-        "orange",
-        "strawberry",
-        "pear",
-    ]
-    assert binary_label_encoder_unknown_exists.vocab_size == 5
+class TestFromDataframe:
+    def test_basic(self, sample_df):
+        enc = LabelEncoder.initializeFromDataframe(sample_df, "label")
+        assert enc.vocab_size == 3
+        assert set(enc.vocab) == {"cat", "dog", "bird"}
+
+    def test_with_reserved_labels(self, sample_df):
+        enc = LabelEncoder.initializeFromDataframe(
+            sample_df, "label", reserved_labels=["fish"]
+        )
+        assert enc.vocab[0] == "fish"
+        assert enc.vocab_size == 4
+
+    def test_with_unknown(self, sample_df):
+        enc = LabelEncoder.initializeFromDataframe(
+            sample_df, "label", unknown_label="OTHER"
+        )
+        assert "OTHER" in enc.vocab
 
 
-def test_binary_label_encoder_unknown_vocab_does_not_exist(
-    binary_label_encoder_unknown_does_not_exist,
-):
-    assert binary_label_encoder_unknown_does_not_exist.vocab == [
-        "apple",
-        "banana",
-        "orange",
-        "strawberry",
-        "pear",
-        "unknown",
-    ]
-    assert binary_label_encoder_unknown_does_not_exist.vocab_size == 6
+class TestMultilabel:
+    def test_from_multilabel_dataframe(self):
+        df = pd.DataFrame({"toxic": [0, 1, 0], "insult": [1, 0, 1]})
+        enc = LabelEncoder.initializeFromMultilabelDataframe(df, ["toxic", "insult"])
+        assert enc.multilabel is True
+        assert enc.vocab == ["toxic", "insult"]
 
+    def test_batch_encode_multilabel(self):
+        enc = LabelEncoder(["a", "b"], multilabel=True)
+        sample = {"a": ["1", "0", "1"], "b": ["0", "1", "1"]}
+        result = enc.batch_encode_multilabel(sample)
+        assert result.shape == (3, 2)
+        assert result.dtype == torch.float32
 
-def test_binary_label_encoder_reserved_vocab(binary_label_encoder_reserved_vocab):
-    assert binary_label_encoder_reserved_vocab.vocab == [
-        "reserved1",
-        "reserved2",
-        "apple",
-        "banana",
-        "orange",
-        "strawberry",
-        "pear",
-        "unknown",
-    ]
-    assert binary_label_encoder_reserved_vocab.vocab_size == 8
-
-
-# Test the single label encoder functions
-def test_binary_label_encoder_batch_encodes(binary_label_encoder):
-    test_strs = ["banana", "banana", "pear", "apple"]
-
-    expected = torch.tensor([1, 1, 4, 0], dtype=torch.long)
-    out = binary_label_encoder.batch_encode(test_strs)
-
-    assert torch.equal(out, expected)
-
-
-def test_binary_label_encoder_batch_encodes_with_unknown_exists(
-    binary_label_encoder_unknown_exists,
-):
-    test_strs = ["banana", "banana", "pear", "this_is_unknown", "apple"]
-
-    expected = torch.tensor([1, 1, 4, 0, 0], dtype=torch.long)
-    out = binary_label_encoder_unknown_exists.batch_encode(test_strs)
-
-    assert torch.equal(out, expected)
-
-
-def test_binary_label_encoder_batch_encodes_with_unknown_does_not_exist(
-    binary_label_encoder_unknown_does_not_exist,
-):
-    test_strs = ["banana", "banana", "pear", "this_is_unknown", "apple"]
-
-    expected = torch.tensor([1, 1, 4, 5, 0], dtype=torch.long)
-    out = binary_label_encoder_unknown_does_not_exist.batch_encode(test_strs)
-
-    assert torch.equal(out, expected)
-
-
-# Test the single label decoder functions
-def test_binary_label_encoder_batch_decodes(binary_label_encoder):
-    expected = ["banana", "banana", "pear", "apple"]
-    test_encoded = torch.tensor([1, 1, 4, 0], dtype=torch.long)
-    out = binary_label_encoder.batch_decode(test_encoded)
-
-    assert expected == out
-
-
-def test_binary_label_encoder_batch_decodes_with_unknown_does_not_exist(
-    binary_label_encoder_unknown_does_not_exist,
-):
-    expected = ["banana", "banana", "pear", "unknown", "apple"]
-    test_encoded = torch.tensor([1, 1, 4, 5, 0], dtype=torch.long)
-    out = binary_label_encoder_unknown_does_not_exist.batch_decode(test_encoded)
-
-    assert expected == out
-
-
-# TODO - test some encoder->decoder->recover original
+    def test_non_binary_raises(self):
+        df = pd.DataFrame({"x": [0, 1, 2]})
+        with pytest.raises(ValueError, match="must be binary"):
+            LabelEncoder.initializeFromMultilabelDataframe(df, ["x"])

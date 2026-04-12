@@ -1,108 +1,225 @@
 # Sheepy
 
-## Purpose
+[![CI](https://github.com/robmsylvester/sheepy/actions/workflows/ci.yml/badge.svg)](https://github.com/robmsylvester/sheepy/actions)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-This library consists of the skeleton for what is needed to run experiments on PyTorch Lightning and Weights and Biases,
-specifically targeted at using Huggingface transformers to perform classification. It includes examples for CSV data modules
-written for binary, multiclass, and multilabel classification, as well as multiple modular models that you should be able to
-inherit from for your task. It also contains code for the Shap value package to easily interpret results as well as torch metrics to be able to output what you want in weights and biases. There is example code for creating additional matplotlib visualizations included in the form of a confusion matrix.
+**Experiment-tracking framework for text classification** built on [PyTorch Lightning](https://lightning.ai/), [Weights & Biases](https://wandb.ai/), and [Hugging Face Transformers](https://huggingface.co/transformers/) — with support for LLMs, vector databases, and retrieval-augmented classification.
 
-## Installation and Preparation
-1. Clone repository
-1. Create virtual environment `python -m venv .venv`. Use Python3.8 or Python3.9. 
-(This is what version of Python I used to develop this. Later versions might give you problems)
-1. Install local requirements
-   `pip install --upgrade pip`
-   `pip install -r requirements.txt`
-1. Activate the environment: `source .venv/bin/activate`
-1. Run setup script
-   `python setup.py install`
-1. Install system requirements for ONNX (https://github.com/Microsoft/onnxruntime#system-requirements)
-1. Login to (and possibly create) Weights and Biases Account
-   `wandb login`
+## Features
 
-## Usage Demo Scripts
-There are demo scripts that can be used to showcase the framework.
+| Capability | Module | Install |
+|---|---|---|
+| **Transformer fine-tuning** — binary, multiclass, multilabel | `sheepy.models` | `pip install sheepy` |
+| **Pydantic v2 config** — JSON, YAML, TOML | `sheepy.config` | included |
+| **Rich W&B dashboards** — tables, PR/ROC curves, artifacts | `sheepy.wandb_utils` | included |
+| **LLM classification** — zero-shot / few-shot via any provider | `sheepy.llm` | `pip install sheepy[llm]` |
+| **Vector DB classification** — KNN, centroid, FAISS/ChromaDB/HNSW | `sheepy.vector` | `pip install sheepy[vector]` |
+| **RAG classification** — dense + BM25 retrieval pipelines | `sheepy.retrieval` | `pip install sheepy[rag]` |
+| **Pluggable registry** — `@register_model` / `@register_data_module` | `sheepy.registry` | included |
+| **CLI** — `sheepy train`, `sheepy evaluate`, `sheepy predict`, `sheepy sweep` | `sheepy.cli` | included |
 
-### Binary Classification
-1. `./run_spam_train_experiment.sh` will run train/tune experiments depending on shell args for the binary email spam classification task
-2. `./run_spam_eval_experiment.sh` will run prediction experiments, either in batches or live via the command line, on your trained model.
+## Quick Start
 
-### Multiclass Classification
-1. `./run_semeval_train_experiment.sh` will run train/tune experiments depending on shell args for the three-class tweet sentiment classification task
-2. `./run_semeval_eval_experiment.sh` will run prediction experiments, either in batches or live via the command line, on your trained model.
+### Installation
 
-### Multilabel Classification
-1. `./run_toxic_train_experiment.sh` will run train/tune experiments depending on shell args for the multilabel toxic comment classification task.
-2. `./run_toxic_eval_experiment.sh` will run prediction experiments, either in batches or live via the command line, on your trained model.
+```bash
+# Core (transformers + Lightning + W&B)
+pip install sheepy
 
-### Tests
-`./run_tests.sh` will run tests.
+# With all optional backends
+pip install sheepy[all]
 
-## Weights and Biases
-You'll need a (free) weights and biases account to visualize metrics that are tracked in your experiment. When running
-the shell scripts, you'll be prompted to create/login to it.
+# Development
+pip install -e ".[dev]"
+```
 
-## Important Classes
-### Experiments
-The experiment class houses the highest level abstraction. It consists of
-1. Lightning data module for your experiment
-1. Lightning model for your experiment
-1. Lightning trainer object used to train/infer
-1. Experiment config JSON (see below)
-1. Label encoder/decoders
-1. Transformer tokenizers and model wrappers
-1. Weights and biases logger
-1. Code for reporting metrics to the logger
-1. Callbacks in training (early stopping, learning rate decay, etc.)
-1. Stdout loggers
-1. Code to save/load modules
-1. Hyperparameter tuning (SweepExperiment class)
+### GPU / CUDA
 
-### Experiment Configs
-Many of the arguments for the data modules and models are shared between different tasks, such as which metrics you want to
-track, or which labels you want to track. In `sheepy/src/config` you will find example configurations for all the samples as
-well as a thorough explanation of what they all mean in `config_guide.json`.
-There are four keys in the top-level of this config:
-1. "experiment" - unique identifiers that is used to create directories and save/load models. Also where you point to your data modules and lightning modules
-1. "metrics" - list of pytorch metrics that you care about tracking.
-1. "hparams" - houses all the (hyper)parameters that you want access to in your modules. this are designed to be module-specific
-1. "validation" - helps to track which metrics you aim to optimize for, as well as help with certain callbacks (early stopping, etc.)
-1. "sweep" - holds necessary parameters for W&B sweep experiments.
+The default `pip install torch` wheel from PyPI is often **CPU-only**, so `torch.cuda.is_available()` stays `False` even when you have an NVIDIA GPU. Sheepy’s `Experiment` class still configures Lightning correctly; it will use **`accelerator="cuda"`** and **`devices=1`** automatically once PyTorch can see CUDA.
 
-## Modes
-The logic for which mode your experiment runs in can be found easily in `main.py`, but to summarize it in natural language...
+1. Install a **CUDA-enabled** PyTorch build for your OS and driver from [pytorch.org/get-started](https://pytorch.org/get-started/locally/) (pick the same CUDA major version as your driver).
+2. Reinstall or verify: `python -c "import torch; print(torch.cuda.is_available(), torch.cuda.get_device_name(0) if torch.cuda.is_available() else None)"`.
+3. On run, check the console line starting with `Lightning Trainer: accelerator=` (and `output/.../config.json` for `lightning_accelerator`, `compute_environment`).
 
-### Training
-This mode is used for a classic train/val/test split, which leans heavily on pytorch lightning. It makes use of train, val, and test data loaders.
+Optional YAML overrides under `hparams`:
 
-### Evaluation
-This mode is used for prediction. It makes use of predict data loaders in pytorch lightning. The included examples support either a batch evaluation
-whose results are written to disk, or a live evaluation whose results are sent back to the console in a REPL shell.
+- `accelerator: cuda` (or `cpu`, `mps`) — force a backend.
+- `devices: 2` — use two GPUs (DDP). Default when CUDA is visible is **`devices: 1`** (single GPU).
 
-### Tuning
-This mode is used for hyperparameter tuning. It makes use of weights and biases and the config sweep JSON to run a specific optimization technique and report back the best results. Currently the bugs are still being worked out here, but this should be available soon.
+Apple Silicon: if `torch.backends.mps.is_available()`, sheepy uses **`accelerator="mps"`** by default when CUDA is not available.
 
-## Using The Framework For New Experiments/Datasets
-To use the framework yourself on your own dataset, you'll need to.
-1. Create a config JSON modeled after one of the examples
-1. Create a data module. It will likely inherit from the BaseDataModule, or maybe the BaseCSVDataModule. These are called like normal
-lightning data modules, so anything you want to override in prepare_data(), setup(), or any of the other lifecycle hooks you will need to
-write here.
-1. Any command line args you want to add can be done with the add_model_specific_args class method as seen in the other data module examples.
-1. Optionally create a model (lightning module) Base transformer classifiers are already written, but you might have some extra engineered features that you wish to concatenate using the augmented_transformer_classifier, for example.
-1. Make sure the name of your data module and model are referenced in some sort of runner script. `examples/main.py` is a runner script that you can use by default for your code. You can place the data module mapping in DATA_MODULE_MAPPING. You can place the model mapping in `models/__init__.py`
-1. Create a shell script that calls the experiment class pointing at whatever arguments you need to specify. See the examples and, again, reference `main.py`
-1. You'll want to register your code changes py reinstalling the setup script: `python setup.py install`
+### Train a classifier
 
-## FAQ
-1. If you receive a runtime error that looks like this while training:
-RuntimeError: [Errno 2] No such file or directory: `/tmp/some_random_stuff.graph.json`, then it is related to a runtime bug under the hood with Weights and Biases and you can just run your code again and it should work. This happens from time to time.
+```bash
+# Via CLI
+sheepy train --config examples/config/config_sms_spam.json --data-dir examples/datasets/spam
 
-2. If you are installing this on Ubuntu/Debian and are installing Python3.7 from source, you'll possibly need to grab the bz2 headers first, especially
-if you have not been using python much on that filesystem. Before the build steps, run: `sudo apt-get install libbz2-dev`. Make sure you also have the standard build tools.
+# Via Python
+from sheepy import SheepyConfig, Experiment
+from sheepy.models import TransformerClassifier
+from sheepy.data_modules import BaseCSVDataModule
 
-3. If you run into memory errors, try dropping the batch size or using a 128-output vector model
-instead of a 768-output model.
+config = SheepyConfig.from_file("config.yaml")
+flat = config.to_flat_dict()
+flat["data_dir"] = "data/"
+flat["output_dir"] = "output/"
+flat = Experiment.validate_experiment_config(flat)
 
-4. Check CUDA and Nvidia driver compatibility with respect to not only your own system but also pytorch. If you are developing on a newer version of CUDA, you probably need a pytorch nightly build, and you may need to explicitly install that version in your virtual environment
+exp = Experiment(flat)
+exp.prepare_trainer(BaseCSVDataModule, TransformerClassifier)
+exp.train()
+exp.test()
+```
+
+### LLM zero-shot classification
+
+```python
+from sheepy.llm import PromptClassifier
+
+clf = PromptClassifier(
+    model="gpt-4o-mini",
+    labels=["positive", "negative", "neutral"],
+)
+result = clf.classify("This product is amazing!")
+print(result["label"])  # "positive"
+print(clf.usage_summary)
+```
+
+### Vector DB / KNN classification
+
+```python
+from sheepy.vector import EmbeddingClassifier, VectorIndex, KNNClassifier
+
+embedder = EmbeddingClassifier(model_name="all-MiniLM-L6-v2")
+index = VectorIndex(backend="faiss", dim=384)
+knn = KNNClassifier(embedder, index, k=5)
+
+knn.fit(train_texts, train_labels)
+predictions = knn.predict(test_texts)
+```
+
+### RAG-augmented classification
+
+```python
+from sheepy.retrieval import DenseRetriever, RAGPipeline
+
+retriever = DenseRetriever(model_name="all-MiniLM-L6-v2")
+retriever.index(documents, labels)
+
+pipeline = RAGPipeline(retriever, k=5)
+result = pipeline.classify("What category is this?")
+print(result["label"], result["retrieved_docs"])
+```
+
+### Custom models via registry
+
+```python
+import sheepy
+from sheepy.models import BaseClassifier
+
+@sheepy.register_model("my_classifier")
+class MyClassifier(BaseClassifier):
+    def _build_model(self):
+        ...
+    def forward(self, tokens, lengths):
+        ...
+    def configure_optimizers(self):
+        ...
+```
+
+Then reference `"my_classifier"` in your config file.
+
+## Configuration
+
+Sheepy uses Pydantic v2 models for validated configuration. Configs can be JSON, YAML, or TOML:
+
+```yaml
+experiment:
+  project_name: my_project
+  model: transformer_classifier
+  data_module: base_csv_data_module
+
+hparams:
+  encoder_model: bert-base-uncased
+  batch_size: 32
+  learning_rate: 3e-5
+  num_labels: 2
+  label: label
+  text: text
+
+metrics:
+  multilabel: false
+  tracked_metrics:
+    - name: accuracy
+      average: micro
+    - name: f1
+      average: macro
+
+validation:
+  metric: val/F1Score
+  metric_goal: max
+
+sweep:
+  method: bayes
+  metric:
+    name: val/F1Score
+    goal: maximize
+  parameters:
+    learning_rate:
+      min: 1.0e-5
+      max: 5.0e-4
+```
+
+## Architecture
+
+```
+sheepy/
+├── cli.py                  # Typer CLI (train, evaluate, predict, sweep)
+├── registry.py             # Pluggable model/data_module registry
+├── config/                 # Pydantic v2 configuration models
+├── common/                 # Logging, collation, DataFrame ops, S3, timestamps
+├── nlp/                    # Tokenizer, LabelEncoder
+├── metrics/                # torchmetrics v1 classification metrics
+├── models/                 # BaseClassifier, TransformerClassifier, inference
+├── data_modules/           # BaseDataModule, CSV, MultiLabel data modules
+├── experiment/             # Experiment orchestrator, W&B sweep runner
+├── wandb_utils/            # Tables, artifacts, PR/ROC curves, dashboard helpers
+├── vector/                 # Embedding, VectorIndex, KNN, Centroid classifiers
+├── retrieval/              # Dense/BM25 retrievers, RAG pipeline
+└── llm/                    # LLM prompt-based classifier with cost tracking
+```
+
+## W&B Integration
+
+Sheepy provides rich W&B logging out of the box:
+
+- **Scalar metrics** — train/val/test loss, accuracy, F1, precision, recall, AUROC
+- **Prediction tables** — interactive tables with text, true/predicted labels, confidence
+- **Confusion matrices** — per-epoch, per-class for multilabel
+- **PR and ROC curves** — via `wandb.plot`
+- **Dataset artifacts** — versioned train/val/test splits
+- **Model artifacts** — versioned checkpoints
+- **Per-class metric panels** — auto-grouped by W&B
+- **Experiment metadata** — git commit, config hash
+
+## Running Tests
+
+```bash
+# All tests (fast)
+pytest tests/ -m "not slow"
+
+# Including slow tests (downloads models)
+pytest tests/
+
+# With coverage
+pytest tests/ --cov=sheepy --cov-report=html
+```
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+## License
+
+MIT

@@ -1,0 +1,55 @@
+site_name: Sheepy Documentation
+site_description: Experiment-tracking framework for text classification
+repo_url: https://github.com/robmsylvester/sheepy
+repo_name: robmsylvester/sheepy
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: deep purple
+      accent: amber
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: deep purple
+      accent: amber
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - content.code.copy
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            show_source: true
+            show_root_heading: true
+
+nav:
+  - Home: index.md
+  - Getting Started: getting-started.md
+  - Configuration: configuration.md
+  - API Reference:
+    - Config: api/config.md
+    - Models: api/models.md
+    - Data Modules: api/data-modules.md
+    - Experiment: api/experiment.md
+    - Vector: api/vector.md
+    - Retrieval: api/retrieval.md
+    - LLM: api/llm.md
+    - W&B Utils: api/wandb-utils.md
+    - Registry: api/registry.md
+
+markdown_extensions:
+  - pymdownx.highlight
+  - pymdownx.superfences
+  - admonition
+  - toc:
+      permalink: true

@@ -1,187 +1,99 @@
+"""Tests for sheepy.common.df_ops."""
+import os
+
+import pandas as pd
 import pytest
 
 from sheepy.common.df_ops import (
-    SOURCE_FILE,
+    column_exists,
+    map_labels,
     read_csv,
     read_csv_text_classifier,
-    resample_multilabel_positives,
     resample_positives,
+    split_dataframe,
+    split_dataframes,
 )
 
-
-def test_read_csv_text_classifier():
-    path = "tests/resources/dummy_dataset.csv"
-    text_col = "text"
-    label_col = "label"
-
-    with pytest.raises(ValueError, match=r".*not a valid text column.*"):
-        read_csv_text_classifier(path, text_col="invalid", label_cols=label_col)
-
-    with pytest.raises(ValueError, match=r".*not a valid label column.*"):
-        read_csv_text_classifier(path, text_col=text_col, label_cols="invalid")
-
-    df_evaluate = read_csv_text_classifier(
-        path, text_col=text_col, label_cols="invalid", evaluate=True
-    )
-    assert SOURCE_FILE in df_evaluate.columns
-
-    df_train = read_csv_text_classifier(path, text_col=text_col, label_cols=label_col)
-    assert text_col in df_train.columns
-    assert label_col in df_train.columns
-    assert SOURCE_FILE not in df_train.columns
+RESOURCES = os.path.join(os.path.dirname(os.path.dirname(__file__)), "resources")
 
 
-def test_read_csv():
-    path = "tests/resources/dummy_dataset.csv"
-    text_col = "text"
-    label_col = "label"
-
-    df = read_csv(path)
-    assert text_col in df.columns
-    assert SOURCE_FILE in df.columns
-    assert label_col in df.columns
-    assert df.shape == (4, 6)
+class TestColumnExists:
+    def test_exists(self):
+        df = pd.DataFrame({"a": [1], "b": [2]})
+        assert column_exists("a", df) is True
+        assert column_exists("c", df) is False
 
 
-def test_read_csv_with_filter():
-    path = "tests/resources/dummy_dataset.csv"
-    text_col = "text"
-    label_col = "label"
+class TestReadCSV:
+    def test_read_basic(self, tmp_path):
+        f = tmp_path / "test.csv"
+        f.write_text("text,label\nhello,spam\nworld,ham\n")
+        df = read_csv(str(f))
+        assert len(df) == 2
+        assert "source_file" in df.columns
 
-    column_list = ["text", "label"]
-
-    df = read_csv(path, column_list)
-    assert text_col in df.columns
-    assert SOURCE_FILE in df.columns
-    assert label_col in df.columns
-    assert "group_id" not in df.columns
-    assert df.shape == (4, 3)
-
-
-def test_resample_positives():
-    path = "tests/resources/dummy_dataset.csv"
-    text_col = "text"
-    label_col = "label"
-    pos_label = "1"
-
-    df = read_csv_text_classifier(path, text_col=text_col, label_cols=label_col)
-
-    # Verify things are unmodified if resample rate is 1
-    resample_rate = 1
-    resampled_1_df = resample_positives(df, resample_rate, label_col, pos_label, reshuffle=False)
-    assert df.shape == resampled_1_df.shape
-    assert (
-        df[df[label_col] == pos_label].shape
-        == resampled_1_df[resampled_1_df[label_col] == pos_label].shape
-    )
-
-    # Verify correct number of rows and correct rows added if not equal to one
-    resample_rate = 3
-    resampled_3_df = resample_positives(df, resample_rate, label_col, pos_label, reshuffle=False)
-    assert df.shape[1] == resampled_3_df.shape[1]
-    assert (
-        df[df[label_col] == pos_label].shape[0] * 3
-        == resampled_3_df[resampled_3_df[label_col] == pos_label].shape[0]
-    )
-    assert (
-        df[df[label_col] != pos_label].shape
-        == resampled_3_df[resampled_3_df[label_col] != pos_label].shape
-    )
+    def test_filter_cols(self, tmp_path):
+        f = tmp_path / "test.csv"
+        f.write_text("a,b,c\n1,2,3\n")
+        df = read_csv(str(f), filter_cols=["a", "c"])
+        assert "b" not in df.columns
 
 
-def test_resample_positives_multilabel():
-    path = "tests/resources/dummy_dataset_multilabel.csv"
-    text_col = "text"
-    text_id_col = "text_id"
-    label_cols = ["label1", "label2", "label3"]
-    pos_label = "1"
+class TestReadCSVTextClassifier:
+    def test_basic(self, tmp_path):
+        f = tmp_path / "data.csv"
+        f.write_text("text,label\nhello,spam\nworld,ham\n")
+        df = read_csv_text_classifier(str(f))
+        assert "text" in df.columns
+        assert "label" in df.columns
 
-    df = read_csv_text_classifier(
-        path, text_col=text_col, label_cols=label_cols, additional_cols=["text_id"]
-    )
+    def test_missing_label_raises(self, tmp_path):
+        f = tmp_path / "data.csv"
+        f.write_text("text,other\nhello,1\n")
+        with pytest.raises(ValueError):
+            read_csv_text_classifier(str(f), label_cols="label")
 
-    resample_rate_dict = {"label1": 1, "label2": 1, "label3": 1}
+    def test_missing_text_raises(self, tmp_path):
+        f = tmp_path / "data.csv"
+        f.write_text("label,other\nspam,1\n")
+        with pytest.raises(ValueError):
+            read_csv_text_classifier(str(f), text_col="text")
 
-    # Verify things are unmodified if resample rate is 1
-    rdf = resample_multilabel_positives(df, resample_rate_dict, pos_label, reshuffle=False)
-    assert df.shape == rdf.shape
+    def test_eval_mode(self, tmp_path):
+        f = tmp_path / "data.csv"
+        f.write_text("text,label,extra\nhello,spam,1\n")
+        df = read_csv_text_classifier(str(f), evaluate=True)
+        assert "extra" in df.columns
 
-    # Verify correct number of rows and correct rows added if a single is not equal to one
-    resample_rate_dict = {"label1": 1, "label2": 1, "label3": 4}
-    rdf = resample_multilabel_positives(df, resample_rate_dict, pos_label, reshuffle=False)
-    assert rdf.shape[0] == 17
-    assert df.shape[1] == rdf.shape[1]
 
-    # Heres the original dataframe
-    # ,group_id,text_id,text,label1,label2,label3
-    # 0,123,123_0,This conference will now be recorded.,0,0,0
-    # 1,123,123_1,potato,1,0,1
-    # 2,123,123_2," potato but in quotes",0,1,1
-    # 3,123,123_3,the end of all things potato,0,0,1
-    # 4,123,123_4,final potato,1,1,1
+class TestSplitDataframe:
+    def test_basic_split(self):
+        df = pd.DataFrame({"x": range(100)})
+        train, val, test = split_dataframe(df, 0.8, 0.1)
+        assert len(train) == 80
+        assert len(val) == 10
+        assert len(test) == 10
 
-    # Rows to be added for label1: 4
-    # 5,123,123_1,potato,1,0,1
-    # 6,123,123_2," potato but in quotes",0,1,1
-    # 7,123,123_3,the end of all things potato,0,0,1
-    # 8,123,123_4,final potato,1,1,1
-    # 9,123,123_1,potato,1,0,1
-    # 10,123,123_2," potato but in quotes",0,1,1
-    # 11,123,123_3,the end of all things potato,0,0,1
-    # 12,123,123_4,final potato,1,1,1
-    # 13,123,123_1,potato,1,0,1
-    # 14,123,123_2," potato but in quotes",0,1,1
-    # 15,123,123_3,the end of all things potato,0,0,1
-    # 16,123,123_4,final potato,1,1,1
-    # Check each text id individually for how many copies it should have
-    assert rdf[rdf[text_id_col] == "123_0"].shape[0] == 1
-    assert rdf[rdf[text_id_col] == "123_1"].shape[0] == 4
-    assert rdf[rdf[text_id_col] == "123_2"].shape[0] == 4
-    assert rdf[rdf[text_id_col] == "123_3"].shape[0] == 4
-    assert rdf[rdf[text_id_col] == "123_4"].shape[0] == 4
+    def test_split_dataframes_single(self):
+        dfs = [pd.DataFrame({"x": range(50)})]
+        train, val, test = split_dataframes(dfs, 0.6, 0.2)
+        assert len(train) + len(val) + len(test) == 50
 
-    # Verify correct number of rows and correct rows added if multiple are unequal to 1
-    resample_rate_dict = {"label1": 2, "label2": 2, "label3": 3}
 
-    # Heres the original dataframe
-    # ,group_id,text_id,text,label1,label2,label3
-    # 0,123,123_0,This conference will now be recorded.,0,0,0
-    # 1,123,123_1,potato,1,0,1
-    # 2,123,123_2," potato but in quotes",0,1,1
-    # 3,123,123_3,the end of all things potato,0,0,1
-    # 4,123,123_4,final potato,1,1,1
+class TestMapLabels:
+    def test_basic(self):
+        df = pd.DataFrame({"label": ["a", "b", "a"]})
+        result = map_labels(df, "label", {"a": "alpha", "b": "beta"})
+        assert result["label"].tolist() == ["alpha", "beta", "alpha"]
 
-    # Rows to be added for label1: 2
-    # 5,123,123_1,potato,1,0,1
-    # 6,123,123_4,final potato,1,1,1
 
-    # Rows to be added for label2: 2
-    # 7,123,123_2," potato but in quotes",0,1,1
-    # 8,123,123_4,final potato,1,1,1
+class TestResamplePositives:
+    def test_rate_2(self):
+        df = pd.DataFrame({"label": ["a"] * 80 + ["b"] * 20, "text": ["x"] * 100})
+        result = resample_positives(df, 2, "label", "b", reshuffle=False)
+        assert len(result) == 120
 
-    # Rows to be added for label3: 3
-    # 9,123,123_1,potato,1,0,1
-    # 10,123,123_2," potato but in quotes",0,1,1
-    # 11,123,123_3,the end of all things potato,0,0,1
-    # 12,123,123_4,final potato,1,1,1
-    # 13,123,123_1,potato,1,0,1
-    # 14,123,123_2," potato but in quotes",0,1,1
-    # 15,123,123_3,the end of all things potato,0,0,1
-    # 16,123,123_4,final potato,1,1,1
-
-    rdf = resample_multilabel_positives(df, resample_rate_dict, pos_label, reshuffle=False)
-    assert df.shape[1] == rdf.shape[1]
-    assert rdf.shape[0] == 17
-
-    # #Check each text id individually for how many copies it should have
-    # assert rdf[rdf['text_id']=='123_0'].shape[0] == 1
-    # assert rdf[rdf['text_id']=='123_1'].shape[0] == 4
-    # assert rdf[rdf['text_id']=='123_2'].shape[0] == 4
-    # assert rdf[rdf['text_id']=='123_3'].shape[0] == 3
-    # assert rdf[rdf['text_id']=='123_4'].shape[0] == 5
-
-    assert rdf[rdf[text_id_col] == "123_0"].shape[0] == 1
-    assert rdf[rdf[text_id_col] == "123_1"].shape[0] == 4
-    assert rdf[rdf[text_id_col] == "123_2"].shape[0] == 4
-    assert rdf[rdf[text_id_col] == "123_3"].shape[0] == 3
-    assert rdf[rdf[text_id_col] == "123_4"].shape[0] == 5
+    def test_invalid(self):
+        df = pd.DataFrame({"label": ["a"]})
+        with pytest.raises(ValueError):
+            resample_positives(df, 0, "label", "a")

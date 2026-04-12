@@ -1,107 +1,170 @@
-from typing import Any, List
+"""Classification metrics built on torchmetrics v1+ API.
+
+Supports binary, multiclass, and multilabel tasks via the ``task`` parameter.
+"""
+from __future__ import annotations
+
+from typing import Any
 
 import torch
 from torchmetrics import (
-    AUC,
     AUROC,
-    F1,
-    ROC,
     Accuracy,
     AveragePrecision,
-    Metric,
+    F1Score,
     MetricCollection,
     Precision,
     Recall,
 )
 
-from sheepy.common.logger import get_std_out_logger
+from sheepy.common.logger import get_logger
+
+logger = get_logger(__name__)
+
+TORCHMETRICS_MAP: dict[str, type] = {
+    "accuracy": Accuracy,
+    "auroc": AUROC,
+    "f1": F1Score,
+    "precision": Precision,
+    "recall": Recall,
+    "average_precision": AveragePrecision,
+}
+
+# Maps the short user-facing config name → the stable key logged to W&B.
+# These keys are what users write in `validation.metric` in their config.
+METRIC_KEY_MAP: dict[str, str] = {
+    "accuracy": "Accuracy",
+    "auroc": "AUROC",
+    "f1": "F1Score",
+    "precision": "Precision",
+    "recall": "Recall",
+    "average_precision": "AveragePrecision",
+}
 
 
-# TODO - need to add LabelEncoder/dict on here if user passes pos_label argument in metrics so we can decode it to get its integer representation
 class ClassificationMetrics:
-    def __init__(self, labels: List[Any], config: dict, logger=None):
-        """A class to help abstract the classification metrics that are reported and sent to PyTorch Lightning's
-        validation epoch callbacks as well as Weights and Biases visualizations.
+    """Thin wrapper around ``torchmetrics.MetricCollection`` that auto-creates
+    train / val / test copies and dispatches ``compute_metrics`` by stage.
 
-        Args:
-            labels (List[Any]): List of labels in the dataset you expect to see. Needed to instantiate metric classes
-            config (Dict): Metric Config JSON from your experiment config profile
-            logger ([Any], optional): Logger to console. Defaults to None to get standard logger
-        """
-        self.num_labels = len(labels)
-        self.logger = get_std_out_logger() if logger is None else logger
+    Args:
+        num_labels: Number of classes / labels.
+        config: Metrics configuration dict (from ``MetricsConfig.model_dump()``).
+        task: One of ``"binary"``, ``"multiclass"``, or ``"multilabel"``.
+    """
+
+    def __init__(
+        self,
+        num_labels: int,
+        config: dict[str, Any],
+        task: str | None = None,
+    ) -> None:
+        """Infer ``task`` when omitted and build train/val/test metric collections."""
+        self.num_labels = num_labels
         self.config = config
 
-        self.torchmetrics_map = {
-            "auroc": AUROC,
-            "f1": F1,
-            "precision": Precision,
-            "recall": Recall,
-            "accuracy": Accuracy,
-            "roc": ROC,
-            "average_precision": AveragePrecision,
-            "auc": AUC,
-        }
+        if task is None:
+            if config.get("multilabel", False):
+                task = "multilabel"
+            elif num_labels > 2:
+                task = "multiclass"
+            else:
+                task = "binary"
+        self.task = task
 
         self._create_metrics()
 
-    def _get_metric_list(self) -> List[Metric]:
-        """[summary]
+    # ------------------------------------------------------------------
+    def _build_metric(self, metric_def: dict[str, Any]) -> Any:
+        """Instantiate one torchmetrics metric from a tracked-metric definition, or None if unknown."""
+        name = metric_def["name"]
+        cls = TORCHMETRICS_MAP.get(name)
+        if cls is None:
+            logger.warning("metric_not_found", metric=name)
+            return None
 
-        Returns:
-            List[Metric]: [description]
-        """
-        tracked_metrics = []
-        for metric_dict in self.config["tracked_metrics"]:
-            if metric_dict["name"] in self.torchmetrics_map:
-                metric_class = self.torchmetrics_map[metric_dict["name"]]
+        kwargs: dict[str, Any] = {"task": self.task}
+        if self.task == "multiclass":
+            kwargs["num_classes"] = self.num_labels
+        elif self.task == "multilabel":
+            kwargs["num_labels"] = self.num_labels
+        elif self.task == "binary":
+            pass  # no extra dim args needed
 
-                args_dict = metric_dict.copy()
+        avg = metric_def.get("average", "macro")
+        if name not in ("accuracy",):
+            kwargs["average"] = avg
 
-                if (
-                    not self.config["multilabel"]
-                    and self.num_labels > 2
-                    and args_dict["average"] == "micro"
-                ):
-                    raise ValueError(
-                        "micro cannot be used as an averaging technique for multiclass metrics. Label {} uses micro in this multiclass metric. See https://torchmetrics.readthedocs.io/en/latest/references/modules.html".format(
-                            args_dict["name"]
-                        )
-                    )
+        # Fewer batch-level UserWarnings (e.g. single-class mini-batches) while keeping numerics.
+        if name in ("auroc", "f1", "precision", "recall", "average_precision"):
+            kwargs["validate_args"] = False
 
-                del args_dict["name"]
-                args_dict["num_classes"] = self.num_labels
-                args_dict["dist_sync_on_step"] = True
+        return cls(**kwargs)
 
-                metric = metric_class(**args_dict)
-                tracked_metrics.append(metric)
-            else:
-                self.logger.warn(
-                    "Metric {} not found and will be ignored. See classification_metrics.py and verify that your metric is mapped to a torchmetrics class"
-                )
-        return tracked_metrics
+    def _create_metrics(self) -> None:
+        """Populate ``metric_collection`` and prefixed train/val/test clones with stable W&B keys."""
+        # Build a dict so MetricCollection uses our stable keys (e.g. "F1Score")
+        # instead of the torchmetrics class names (e.g. "BinaryF1Score").
+        # This means W&B always receives keys like val/F1Score regardless of task,
+        # which matches what users write in validation.metric in their config.
+        metrics: dict[str, Any] = {}
+        for mdef in self.config.get("tracked_metrics", []):
+            m = self._build_metric(mdef)
+            if m is not None:
+                key = METRIC_KEY_MAP.get(mdef["name"], mdef["name"].capitalize())
+                metrics[key] = m
 
-    def _create_metrics(self):
-        """Instantiates the auroc, f1, precision, and recall based upon the initialization args for the class"""
-        tracked_metrics = self._get_metric_list()
-        self.metric_collection = MetricCollection(tracked_metrics)
+        if not metrics:
+            metrics["Accuracy"] = Accuracy(
+                task=self.task,
+                num_classes=self.num_labels if self.task == "multiclass" else None,
+                num_labels=self.num_labels if self.task == "multilabel" else None,
+            )
+
+        self.metric_collection = MetricCollection(metrics)
         self.train_metrics = self.metric_collection.clone(prefix="train/")
         self.validation_metrics = self.metric_collection.clone(prefix="val/")
         self.test_metrics = self.metric_collection.clone(prefix="test/")
 
+    # ------------------------------------------------------------------
     def compute_metrics(
-        self, logits: torch.Tensor, labels: torch.Tensor, stage: str
-    ) -> torch.Tensor:
-        if stage == "train" or stage == "train_epoch":
-            out = self.train_metrics(logits.cpu(), labels.cpu())
-        elif stage == "val" or stage == "val_epoch":
-            out = self.validation_metrics(logits.cpu(), labels.cpu())
-        elif stage == "test" or stage == "test_epoch":
-            out = self.test_metrics(logits.cpu(), labels.cpu())
-        else:
-            raise ValueError(
-                "stage to compute metrics must be either 'train', 'val', or 'test', 'train_epoch', 'val_epoch', or 'test_epoch'. Instead, passed {}".format(
-                    stage
-                )
-            )
-        return out
+        self,
+        logits: torch.Tensor,
+        labels: torch.Tensor,
+        stage: str,
+    ) -> dict[str, torch.Tensor]:
+        """Apply task-appropriate probabilities and run the metric bundle for *stage*."""
+        preds = logits.detach().cpu()
+        targets = labels.detach().cpu()
+
+        if self.task == "multilabel":
+            # sigmoid → [N, L] float probabilities
+            preds = torch.sigmoid(preds)
+        elif self.task == "multiclass":
+            # softmax → [N, C] class probabilities
+            preds = torch.softmax(preds, dim=-1)
+        elif self.task == "binary":
+            # torchmetrics binary metrics expect [N] — probability of the positive class
+            preds = torch.softmax(preds, dim=-1)[:, 1]
+
+        collection = {
+            "train": self.train_metrics,
+            "train_epoch": self.train_metrics,
+            "val": self.validation_metrics,
+            "val_epoch": self.validation_metrics,
+            "test": self.test_metrics,
+            "test_epoch": self.test_metrics,
+        }.get(stage)
+
+        if collection is None:
+            raise ValueError(f"Unknown stage '{stage}'. Expected train/val/test.")
+
+        return collection(preds, targets)
+
+    def reset(self, stage: str | None = None) -> None:
+        """Reset internal metric state for *stage*, or all stages when *stage* is None."""
+        if stage is None or stage == "train":
+            self.train_metrics.reset()
+        if stage is None or stage == "val":
+            self.validation_metrics.reset()
+        if stage is None or stage == "test":
+            self.test_metrics.reset()

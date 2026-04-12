@@ -1,107 +1,73 @@
+"""Tokenizer wrapper around HuggingFace AutoTokenizer.
+
+Removes the legacy torchnlp TextEncoder dependency.
+"""
+from __future__ import annotations
+
 from typing import Tuple
 
 import torch
-from torchnlp.encoders.text.text_encoder import TextEncoder
 from transformers import AutoTokenizer
 
 
-class Tokenizer(TextEncoder):
-    """
-    BERT Tokenizer wrapped around the TorchNLP TextEncoder module.
-
-    TextEncoders make it easy to go back and forth between vector representations and
-    vocabulary representations. Here we add a tokenizer on top of that.
+class Tokenizer:
+    """Wraps ``AutoTokenizer`` with convenience encode / batch_encode methods
+    that return ``(input_ids, lengths)`` tensors.
     """
 
-    def __init__(self, pretrained_model: str) -> None:
-        self.enforce_reversible = False
+    def __init__(self, pretrained_model: str, max_length: int = 512) -> None:
+        """Load ``AutoTokenizer`` and cap encoded sequence length."""
         self.tokenizer = AutoTokenizer.from_pretrained(pretrained_model)
-        self.itos = self.tokenizer.convert_ids_to_tokens
+        self.max_length = max_length
 
+    # -- Token-index properties ----------------------------------------
     @property
-    def unk_index(self) -> int:
-        """Returns the index used for the unknown token."""
+    def unk_index(self) -> int | None:
+        """HF unk token id, if defined."""
         return self.tokenizer.unk_token_id
 
     @property
-    def bos_index(self) -> int:
-        """Returns the index used for the begin-of-sentence token."""
+    def bos_index(self) -> int | None:
+        """CLS / sequence-start token id for BERT-style models."""
         return self.tokenizer.cls_token_id
 
     @property
-    def eos_index(self) -> int:
-        """Returns the index used for the end-of-sentence token."""
+    def eos_index(self) -> int | None:
+        """SEP / segment-boundary token id when present."""
         return self.tokenizer.sep_token_id
 
     @property
-    def pad_index(self) -> int:
-        """Returns the index used for the padding token."""
+    def pad_index(self) -> int | None:
+        """Padding token id for batching."""
         return self.tokenizer.pad_token_id
 
     @property
-    def vocab(self) -> list:
-        """
-        Returns:
-            list: List of tokens in the dictionary.
-        """
-        return self.tokenizer.vocab
-
-    @property
     def vocab_size(self) -> int:
-        """
-        Returns:
-            int: Number of tokens in the dictionary.
-        """
-        return len(self.itos)
+        """Tokenizer vocabulary size reported by HuggingFace."""
+        return self.tokenizer.vocab_size
 
+    # -- Encoding ------------------------------------------------------
     def encode(self, sequence: str) -> torch.Tensor:
-        """Encodes a 'sequence'.
-        Arguments:
-            :param sequence: String 'sequence' to encode.
+        """Tokenize a single string to 1-D ``input_ids`` (no padding)."""
+        return self.tokenizer(sequence, return_tensors="pt")["input_ids"].squeeze(0)
+
+    def batch_encode(self, sentences: list[str]) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Tokenize a batch of sentences.
 
         Returns:
-            torch.Tensor: encoding of the `sequence`.
+            Tuple of (input_ids [B, seq_len], lengths [B]).
         """
-        sequence = TextEncoder.encode(self, sequence)
-        return self.tokenizer(sequence, return_tensors="pt")["input_ids"][0]
-
-    def batch_encode(self, sentences: list) -> Tuple[torch.Tensor, torch.Tensor]:
-        """
-        Arguments:
-            :param iterator (iterator): Batch of text to encode.
-            :param **kwargs: Keyword arguments passed to 'encode'.
-
-        Returns
-            torch.Tensor, torch.Tensor: Encoded and padded batch of sequences; Original lengths of
-                sequences.
-        """
-        tokenizer_output = self.tokenizer(
+        out = self.tokenizer(
             sentences,
             return_tensors="pt",
             padding=True,
             return_length=True,
             return_token_type_ids=False,
-            return_attention_mask=False,
+            return_attention_mask=True,
             truncation="only_first",
-            max_length=512,
+            max_length=self.max_length,
         )
-        return tokenizer_output["input_ids"], tokenizer_output["length"]
-
-
-def mask_fill(
-    fill_value: float, tokens: torch.tensor, embeddings: torch.tensor, pad_index: int
-) -> torch.tensor:
-    """
-    Function that masks embeddings representing padded elements.
-
-    Arguments:
-        fill_value: the value to fill the embeddings belonging to padded tokens.
-        :tokens: the input sequences [batch_size x seq_len].
-        embeddings: word embeddings [batch_size x seq_len x embedding_size].
-        pad_index: index of the padding token.
-
-    Returns:
-        embeddings: torch float tensor with filled masks according to fill value and pad indexes
-    """
-    padding_mask = tokens.eq(pad_index).unsqueeze(-1)
-    return embeddings.float().masked_fill_(padding_mask, fill_value).type_as(embeddings)
+        input_ids = out["input_ids"]
+        attention_mask = out["attention_mask"]
+        lengths = attention_mask.sum(dim=1)
+        return input_ids, lengths

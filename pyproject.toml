@@ -1,0 +1,119 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sheepy"
+version = "1.0.0"
+description = "Experiment-tracking framework for text classification built on PyTorch Lightning, Weights & Biases, and Hugging Face Transformers — with support for LLMs, vector databases, and retrieval-augmented classification."
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+authors = [
+    {name = "Rob Sylvester", email = "robmsylvester@gmail.com"},
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+keywords = ["nlp", "text-classification", "transformers", "pytorch-lightning", "wandb", "experiment-tracking"]
+dependencies = [
+    "pandas>=2.0",
+    "torch>=2.0",
+    "transformers>=4.36",
+    "lightning>=2.0",
+    "wandb>=0.16",
+    "numpy>=1.24",
+    "scikit-learn>=1.3",
+    "torchmetrics>=1.0",
+    "rich>=13.0",
+    "pydantic>=2.0",
+    "pyyaml>=6.0",
+    "typer>=0.9",
+    "structlog>=23.0",
+]
+
+[project.optional-dependencies]
+llm = [
+    "sentence-transformers>=2.2",
+    "litellm>=1.0",
+    "tiktoken>=0.5",
+]
+vector = [
+    "faiss-cpu>=1.7",
+    "chromadb>=0.4",
+]
+# hnswlib requires MSVC on Windows. Install separately after installing
+# "Microsoft C++ Build Tools": https://visualstudio.microsoft.com/visual-cpp-build-tools/
+hnsw = [
+    "hnswlib>=0.7",
+]
+rag = [
+    "rank-bm25>=0.2",
+]
+shap = [
+    "shap>=0.43",
+    "matplotlib>=3.7",
+]
+all = [
+    "sheepy[llm,vector,rag,shap]",
+    # Note: [hnsw] is excluded from [all] because it requires MSVC on Windows.
+    # Install separately: pip install sheepy[hnsw]
+]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "pytest-mock>=3.10",
+    "mypy>=1.5",
+    "ruff>=0.1",
+    "pre-commit>=3.0",
+    "mkdocs>=1.5",
+    "mkdocs-material>=9.0",
+    "mkdocstrings[python]>=0.24",
+]
+
+[project.scripts]
+sheepy = "sheepy.cli:app"
+
+[project.urls]
+Homepage = "https://github.com/robmsylvester/sheepy"
+Documentation = "https://github.com/robmsylvester/sheepy#readme"
+Repository = "https://github.com/robmsylvester/sheepy"
+Issues = "https://github.com/robmsylvester/sheepy/issues"
+
+[tool.setuptools.packages.find]
+include = ["sheepy*"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP", "B", "SIM"]
+ignore = ["E501"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["sheepy"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-vv --tb=short"
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks integration tests",
+]
+
+[tool.mypy]
+python_version = "3.13"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true

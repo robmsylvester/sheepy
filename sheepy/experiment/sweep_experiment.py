@@ -1,71 +1,79 @@
-from argparse import Namespace
+"""W&B sweep experiment orchestrator."""
+from __future__ import annotations
 
-import pytorch_lightning as pl
+from typing import Any
+
+import lightning as L
+import torch
 import wandb
-from torch.multiprocessing import set_start_method
 
+from sheepy.common.compute_env import (
+    resolve_trainer_accelerator_and_devices,
+    strategy_for_distributed,
+)
+from sheepy.common.logger import get_logger
 from sheepy.experiment.base_experiment import Experiment
 
-# Note, to access params chosen from the sweep, refer to them as wandb.config, and this references
-# the parameters object in the sweep from your JSON configuration file. Call wandb.init() first to
-# gain access to this wandb.config dict.
+logger = get_logger(__name__)
 
 
 class SweepExperiment(Experiment):
+    """Runs W&B hyperparameter sweeps.
+
+    Args:
+        config: Flat experiment config dict.
+        data_module_cls: Class for the data module.
+        model_cls: Class for the model.
+    """
+
     def __init__(
         self,
-        args: Namespace,
-        data_module_cls: pl.LightningDataModule,
-        model_cls: pl.LightningModule,
-    ):
-        super().__init__(args)
+        config: dict[str, Any],
+        data_module_cls: type[L.LightningDataModule],
+        model_cls: type[L.LightningModule],
+    ) -> None:
+        """Store sweep participant classes after base experiment setup."""
+        super().__init__(config)
         self.data_module_cls = data_module_cls
         self.model_cls = model_cls
-        set_start_method("spawn", force=True)  # multiprocessing necessity
-        self.logger = None
 
-    def _build_sweep_trainer(self):
-        """A sweep trainer is really no different than a normal trainer module, except that we return
-        it directly for each process thread via a return statement instead of an assignment, and the
-        accelerator is specified as 'dp' due to the multiprocessing requiremets of the sweep"""
-        return pl.Trainer.from_argparse_args(
-            self.args,
+    def _build_sweep_trainer(self) -> L.Trainer:
+        """Lightweight trainer for a single W&B sweep trial (no progress callback list mutation)."""
+        n_gpu = torch.cuda.device_count()
+        precision = "16-mixed" if self.config.get("precision") == 16 and n_gpu > 0 else "32-true"
+
+        accelerator, devices = resolve_trainer_accelerator_and_devices(self.config)
+        strategy = strategy_for_distributed(accelerator, devices)
+
+        return L.Trainer(
             callbacks=self.custom_callbacks,
             logger=self.wandb,
-            gpus=self.args.n_gpu,
-            log_gpu_memory="all",
+            accelerator=accelerator,
+            devices=devices,
+            strategy=strategy,
+            precision=precision,
             deterministic=True,
-            fast_dev_run=False,
-            accelerator="dp",
-            amp_level="O1",
-            precision=self.args.precision,
+            max_epochs=self.config.get("max_epochs", self.config.get("num_epochs", 10)),
         )
 
-    def sweep_iteration(self):
-        """
-        The sweep iteration is a defined function to pass to the tuner, and in this case, it's just
-        the normal prepare_trainer() function from the base experiment, without saving the module
-        directly, and some modifications to remove logger's so that they can be serialized without
-        threading errors.
-        """
-        data = self.data_module_cls(self.args)
+    def sweep_iteration(self) -> None:
+        """One agent run: merge sweep hyperparams, rebuild data/model, and ``fit``."""
+        wandb.init()
+        sweep_config = dict(wandb.config)
+        run_config = {**self.config, **sweep_config}
+
+        data = self.data_module_cls(run_config)
         data.prepare_data()
         data.setup(stage="fit")
         data._verify_module()
 
-        model = self.model_cls(self.args, data)
+        model = self.model_cls(run_config, data)
         self._build_callbacks()
         trainer = self._build_sweep_trainer()
-
-        # python tries to pickle these in a subprocess, and they can't be pickled
-        data.logger = None
-        model.logger = None
-
         trainer.fit(model, data)
 
-    def tune(self):
-        """
-        Runs a sweep or hyperparameters that can be visualized in the browser.
-        """
-        sweep_id = wandb.sweep(self.args.sweep, project=self.args.experiment_name)
+    def tune(self) -> None:
+        """Register a W&B sweep and start agents calling ``sweep_iteration``."""
+        sweep_cfg = self.config.get("sweep", {})
+        sweep_id = wandb.sweep(sweep_cfg, project=self.config.get("project_name", "sheepy"))
         wandb.agent(sweep_id, function=self.sweep_iteration)

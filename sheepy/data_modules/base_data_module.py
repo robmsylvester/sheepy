@@ -1,93 +1,84 @@
-import argparse
-import os
-from typing import Dict, List, Optional, Union
+"""Base data module for sheepy experiments, built on Lightning 2.x."""
+from __future__ import annotations
 
+import os
+from typing import Any
+
+import lightning as L
 import pandas as pd
 import torch
-import wandb
-from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader, RandomSampler
 
 from sheepy.common.collate import CollatedSample, single_text_collate_function
-from sheepy.common.logger import get_std_out_logger
+from sheepy.common.logger import get_logger
 from sheepy.nlp.label_encoder import LabelEncoder
 from sheepy.nlp.tokenizer import Tokenizer
 
+logger = get_logger(__name__)
 
-class BaseDataModule(LightningDataModule):
-    def __init__(self, args: argparse.Namespace):
+
+class BaseDataModule(L.LightningDataModule):
+    """Abstract data module that defines the standard interface.
+
+    Args:
+        config: Flat dict of experiment configuration.
+    """
+
+    def __init__(self, config: dict[str, Any]) -> None:
+        """Store config, output dir, tokenizer reference, and unset dataset handles."""
         super().__init__()
-        self.logger = get_std_out_logger()
-        self.args = args
-        self._set_tune_params()
+        self.config = config
         self.sample_id_col = "sample_id"
-        self.evaluate = self.args.evaluate  # readability
-        self.label_col = self.args.label  # readability
-        self.text_col = self.args.text  # readability
+        self.evaluate = config.get("evaluate", False)
+        self.label_col = config.get("label", "label")
+        self.text_col = config.get("text", "text")
 
-        self._train_dataset, self._val_dataset, self._test_dataset, self._predict_dataset = (
-            None,
-            None,
-            None,
-            None,
-        )
-        if not os.path.exists(self.args.output_dir):
-            os.makedirs(self.args.output_dir)
+        self._train_dataset = None
+        self._val_dataset = None
+        self._test_dataset = None
+        self._predict_dataset = None
 
-        self.tokenizer = Tokenizer(self.args.encoder_model)
+        output_dir = config.get("output_dir", ".")
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir, exist_ok=True)
 
-    def _set_tune_params(self):
-        # TODO - we may want to support iterating through other config than hparams, such as the encoder_model
-        if self.args.tune:
-            wandb.init()  # gives access to wandb.config
-            for k, v in wandb.config.items():
-                if k in self.args:
-                    self.args[k] = v
-                    self.logger.debug(
-                        "Setting data module hyperparameter {} to sweep value {}".format(k, v)
-                    )
+        self.tokenizer = Tokenizer(config.get("encoder_model", "bert-base-uncased"))
+        self.label_encoder: LabelEncoder | None = None
+        self.train_class_sizes: dict[str, int] | None = None
 
-    def prepare_data(self):
-        raise NotImplementedError("This must be implemented by child class.")
+    def prepare_data(self) -> None:
+        """Subclasses must implement dataset download or preprocessing."""
+        raise NotImplementedError("Subclass must implement prepare_data().")
 
-    def setup(self, stage: Optional[str] = None):
+    def setup(self, stage: str | None = None) -> None:
+        """Override to assign ``_train_dataset`` / ``_val_dataset`` / ``_test_dataset`` for *stage*."""
         pass
 
-    def teardown(self, stage: Optional[str] = None):
+    def _verify_module(self) -> None:
+        """Hook after setup; CSV modules build encoders and class counts here."""
         pass
 
-    def _verify_module(self):
-        """
-        Verify that the dataset shapes are correct, the class sizes and labels match the parameters.
-        """
+    def save_data_module(self, out_path: str | None = None) -> None:
+        """Override to persist encoder metadata needed to reload checkpoints."""
         pass
 
-    def save_data_module(self, out_path: str = None):
+    def load_data_module(self, in_path: str | None = None) -> None:
+        """Override to restore encoder metadata saved by ``save_data_module``."""
         pass
 
-    def load_data_module(self, in_path: str = None):
-        pass
+    def _dataloader_kwargs(self) -> dict[str, Any]:
+        """Common DataLoader options: workers, ``persistent_workers``, ``pin_memory``."""
+        nw = int(self.config.get("loader_workers", 0))
+        kw: dict[str, Any] = {"num_workers": nw}
+        if nw > 0:
+            kw["persistent_workers"] = True
+        kw["pin_memory"] = bool(torch.cuda.is_available())
+        return kw
 
-    def prepare_sample(self, sample: list) -> CollatedSample:
-        """
-        Function that prepares a sample to input the model.
-        args:
-            sample - list of dictionaries that contain the specified values that you will use to transform the sample into a inputs to
-                the neural network. This sample will contain the text input column that will be encoded as one of the dictionaries,
-                and probably a few others, such as a label key. The length of sample will be the batch size of your model, which then
-                will be divided equally over your GPU's
-
-        Returns:
-            - dictionary with the expected model inputs, with each of the inputs in this case containing a key-value pair specifying which of
-                the text inputs are included (context windows, meeting name, etc.)
-            - dictionary with the expected target labels.
-        """
+    def prepare_sample(self, sample: list[dict]) -> CollatedSample:
+        """Collate a batch of raw dict rows into token tensors and labels."""
         if self.text_col is None:
-            raise NotImplementedError(
-                "To use the default collate function you need a text column.\nAlternatively, write one for the x_cols to prepare your data"
-            )
-
-        # TODO - turn this into always using windowed text collate function
+            raise NotImplementedError("A text column is required for the default collate function.")
         return single_text_collate_function(
             sample,
             self.text_col,
@@ -98,142 +89,116 @@ class BaseDataModule(LightningDataModule):
             evaluate=self.evaluate,
         )
 
-    def _write_predictions(self, outputs: List[dict]) -> None:
-        all_columns = self.label_encoder.vocab
+    def _write_predictions(self, outputs: list[dict]) -> None:
+        """Aggregate ``predict_step`` logits and write softmax probabilities to CSV."""
+        all_columns = list(self.label_encoder.vocab)
         all_columns.append(self.sample_id_col)
-        all_batch_predictions_df = pd.DataFrame(columns=all_columns)
+        frames = []
 
         for output in outputs:
             prediction_logits = output["logits"].cpu().squeeze()
-            sample_ids = pd.Series(output["sample_id_keys"].cpu().squeeze()).astype("int")
+            sample_ids = output["sample_id_keys"].cpu().squeeze()
+            if prediction_logits.dim() == 1:
+                prediction_logits = prediction_logits.unsqueeze(0)
+
             prediction_softmax = torch.nn.Softmax(dim=1)(prediction_logits)
-            batch_prediction_df = pd.DataFrame(prediction_softmax).astype("float")
-            batch_prediction_df = batch_prediction_df.rename(
-                columns={
-                    label_idx: label for label_idx, label in enumerate(self.label_encoder.vocab)
-                }
+            batch_df = pd.DataFrame(prediction_softmax.numpy()).astype(float)
+            batch_df = batch_df.rename(
+                columns={i: label for i, label in enumerate(self.label_encoder.vocab)}
             )
-            batch_prediction_df[self.sample_id_col] = sample_ids
-            all_batch_predictions_df = all_batch_predictions_df.append(
-                batch_prediction_df, ignore_index=True
-            )
+            batch_df[self.sample_id_col] = sample_ids.numpy().astype(int)
+            frames.append(batch_df)
 
-        all_batch_predictions_df = all_batch_predictions_df.reset_index(drop=True)
-        cols = all_batch_predictions_df.columns.tolist()
-        cols = cols[-1:] + cols[:-1]
-        all_batch_predictions_df = all_batch_predictions_df[cols]
+        result = pd.concat(frames, ignore_index=True)
+        cols = [self.sample_id_col] + [c for c in result.columns if c != self.sample_id_col]
+        result = result[cols]
 
-        self.logger.info(
-            "Writing CSV file with {} predictions to {}".format(
-                all_batch_predictions_df.shape[0], self.args.output_prediction_path
-            )
-        )
-        all_batch_predictions_df.to_csv(self.args.output_prediction_path)
+        out_path = self.config.get("output_prediction_path", "predictions.csv")
+        logger.info("writing_predictions", count=len(result), path=out_path)
+        result.to_csv(out_path, index=False)
 
-    def _verify_dataset_record_type(self, dataset: Union[pd.DataFrame, List[Dict]]) -> List[Dict]:
-        """Verifies that dataset returns records datatype of type list[dict], converting from
-        pandas if necessary.
-
-        Args:
-            dataset (Optional[pd.DataFrame, List[Dict]]): Dataset
-
-        Returns:
-            List[Dict]: Records of dataset as list of dictionaries
-        """
+    def _verify_dataset_record_type(self, dataset) -> list[dict]:
+        """Normalize *dataset* to a non-empty list of dict rows for DataLoader."""
         if isinstance(dataset, pd.DataFrame):
             dataset = dataset.to_dict("records")
-        assert isinstance(dataset, list) and isinstance(dataset[0], dict)
+        assert isinstance(dataset, list) and len(dataset) > 0 and isinstance(dataset[0], dict)
         return dataset
 
-    def _load_text_from_text_file(self, filepath: str) -> List[dict]:
-        """[summary]
-
-        Args:
-            filepath (str): [description]
-
-        Returns:
-            List[dict]: [description]
-        """
-        prepared_inputs = []
+    def _load_text_from_text_file(self, filepath: str) -> list[dict]:
+        """Build one sample dict per non-empty line for batch evaluation."""
+        prepared = []
         with open(filepath, "r") as f:
             for idx, line in enumerate(f):
-                line = line.rstrip()
-                prepared_input = {
-                    self.text_col: line,
+                prepared.append({
+                    self.text_col: line.rstrip(),
                     self.label_col: None,
                     self.sample_id_col: idx,
-                }
-                prepared_inputs.append(prepared_input)
-        return prepared_inputs
+                })
+        return prepared
 
-    def _load_text_from_raw_input(self) -> List[dict]:
-        sample_text = input("Enter sample text. (Press Ctrl+C to exit)\n")
-        prepared_input = {self.text_col: sample_text, self.label_col: None, self.sample_id_col: 0}
-        return [prepared_input]
+    def _load_text_from_raw_input(self) -> list[dict]:
+        """Prompt stdin once and return a single-row sample for live prediction."""
+        text = input("Enter sample text (Ctrl+C to exit):\n")
+        return [{self.text_col: text, self.label_col: None, self.sample_id_col: 0}]
 
     def train_dataloader(self) -> DataLoader:
-        """Function that loads the train set."""
-        self._train_dataset = self._verify_dataset_record_type(self._train_dataset)
+        """Random-sampled training loader with ``prepare_sample`` collate."""
+        ds = self._verify_dataset_record_type(self._train_dataset)
         return DataLoader(
-            dataset=self._train_dataset,
-            sampler=RandomSampler(self._train_dataset),
-            batch_size=self.args.batch_size,
+            dataset=ds,
+            sampler=RandomSampler(ds),
+            batch_size=self.config.get("batch_size", 16),
             collate_fn=self.prepare_sample,
-            num_workers=self.args.loader_workers,
+            **self._dataloader_kwargs(),
         )
 
     def val_dataloader(self) -> DataLoader:
-        """Function that loads the validation set."""
-        self._val_dataset = self._verify_dataset_record_type(self._val_dataset)
+        """Sequential validation loader."""
+        ds = self._verify_dataset_record_type(self._val_dataset)
         return DataLoader(
-            dataset=self._val_dataset,
-            batch_size=self.args.batch_size,
+            dataset=ds,
+            batch_size=self.config.get("batch_size", 16),
             collate_fn=self.prepare_sample,
-            num_workers=self.args.loader_workers,
+            **self._dataloader_kwargs(),
         )
 
     def test_dataloader(self) -> DataLoader:
-        """Function that loads the test set."""
-        self._test_dataset = self._verify_dataset_record_type(self._test_dataset)
+        """Sequential test loader."""
+        ds = self._verify_dataset_record_type(self._test_dataset)
         return DataLoader(
-            dataset=self._test_dataset,
-            batch_size=self.args.batch_size,
+            dataset=ds,
+            batch_size=self.config.get("batch_size", 16),
             collate_fn=self.prepare_sample,
-            num_workers=self.args.loader_workers,
+            **self._dataloader_kwargs(),
         )
 
     def predict_batch_dataloader(self) -> DataLoader:
-        """Function that loads batch prediction by processing lines in a text file"""
-        self._predict_dataset = self._load_text_from_text_file(self.args.evaluate_batch_file)
+        """Loader over lines from ``evaluate_batch_file`` for offline inference."""
+        self._predict_dataset = self._load_text_from_text_file(self.config["evaluate_batch_file"])
         return DataLoader(
             dataset=self._predict_dataset,
-            batch_size=self.args.batch_size,
+            batch_size=self.config.get("batch_size", 16),
             collate_fn=self.prepare_sample,
-            num_workers=self.args.loader_workers,
+            **self._dataloader_kwargs(),
         )
 
     def predict_live_dataloader(self) -> DataLoader:
-        """Function that loads the batch prediction set by processing a single piece of text input to the shell"""
+        """Single-sample loader driven by interactive stdin for live inference."""
         self._predict_dataset = self._load_text_from_raw_input()
         return DataLoader(
             dataset=self._predict_dataset,
-            batch_size=self.args.batch_size,
+            batch_size=1,
             collate_fn=self.prepare_sample,
-            num_workers=self.args.loader_workers,
+            num_workers=0,
         )
 
-    def _build_label_encoder(self):
+    def _build_label_encoder(self) -> None:
+        """Fit ``LabelEncoder`` on the training dataframe's label column."""
         self.label_encoder = LabelEncoder.initializeFromDataframe(
-            self._train_dataset, self.args.label
+            self._train_dataset, self.label_col
         )
-        self.logger.info("Label Encoder Vocab: {}".format(self.label_encoder.vocab))
+        logger.info("label_encoder_built", vocab=self.label_encoder.vocab)
 
-    # TODO - probably move to csv, generalize one
-    def _set_class_sizes(self):
-        self.train_class_sizes = None  # Write this
-        raise NotImplementedError("This must be implemented by child class.")
-
-    @classmethod
-    def add_model_specific_args(cls, parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
-        """Return the argument parser with necessary args for this class appended to it"""
-        return parser
+    def _set_class_sizes(self) -> None:
+        """Subclasses must implement per-class counts (or per-label counts) for weighting."""
+        raise NotImplementedError("Subclass must implement _set_class_sizes().")

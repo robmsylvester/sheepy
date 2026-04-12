@@ -1,73 +1,68 @@
-import argparse
-from argparse import Namespace
+"""Transformer-based text classifier using HuggingFace AutoModelForSequenceClassification.
 
-from pytorch_lightning import LightningDataModule
+Handles binary, multiclass, and multilabel tasks through a single class.
+"""
+from __future__ import annotations
+
+from typing import Any
+
+import lightning as L
+import torch
 from torch import optim
-from torchnlp.utils import lengths_to_mask
 from transformers import AutoConfig, AutoModelForSequenceClassification
 
 from sheepy.models.base_classifier import BaseClassifier
 
 
 class TransformerClassifier(BaseClassifier):
-    """
-    Sample model to show how to use a Transformer model to classify sentences.
+    """Sequence classifier backed by any HuggingFace model that supports
+    ``AutoModelForSequenceClassification``.
 
-    This model builds upon the text representation class then attaches a head from the fully connected classifier class,
-    stitching them together according to your config params
-
-    :param args: ArgumentParser containing the hyperparameters.
-    :param data: LightningDataModule object containing implementations of train_dataloader, val_dataloader,
-     and necessary other ETL.
+    Args:
+        config: Flat experiment config dict.
+        data: LightningDataModule with label_encoder, tokenizer, etc.
+        task: ``"binary"``, ``"multiclass"``, or ``"multilabel"``.
     """
 
-    def __init__(self, args: Namespace, data: LightningDataModule) -> None:
-        super().__init__(args, data)
-
-        # build model
+    def __init__(
+        self,
+        config: dict[str, Any],
+        data: L.LightningDataModule,
+        task: str | None = None,
+    ) -> None:
+        """Build HF sequence-classification head and task loss after base setup."""
+        super().__init__(config, data, task=task)
         self._build_model()
         self._build_loss()
 
     def _build_model(self) -> None:
-        """Initializes the BERT model and the classification head."""
-        config = AutoConfig.from_pretrained(
-            self.args.encoder_model,
-            num_labels=len(self.data.label_encoder.vocab),
-            id2label={id: label for id, label in enumerate(self.data.label_encoder.vocab)},
-            label2id={label: id for id, label in enumerate(self.data.label_encoder.vocab)},
+        """Load ``AutoModelForSequenceClassification`` with label ids and problem type."""
+        vocab = self.data.label_encoder.vocab
+        hf_config = AutoConfig.from_pretrained(
+            self.config["encoder_model"],
+            num_labels=len(vocab),
+            id2label={i: label for i, label in enumerate(vocab)},
+            label2id={label: i for i, label in enumerate(vocab)},
+            problem_type=(
+                "multi_label_classification" if self.task == "multilabel" else "single_label_classification"
+            ),
         )
         self.model = AutoModelForSequenceClassification.from_pretrained(
-            self.args.encoder_model,
-            config=config,
+            self.config["encoder_model"],
+            config=hf_config,
         )
 
-    def forward(self, tokens, lengths) -> dict:
-        """Usual pytorch forward function.
-        :param tokens: text sequences [batch_size x src_seq_len]
-        :param lengths: source lengths [batch_size]
-        Returns:
-            Dictionary with model outputs (e.g: logits)
-        """
+    def forward(self, tokens: torch.Tensor, lengths: torch.Tensor) -> dict[str, torch.Tensor]:
+        """Trim to max length in batch, apply attention mask, return classifier logits."""
         tokens = tokens[:, : lengths.max()]
-
-        # When using just one GPU this should not change behavior
-        # but when splitting batches across GPU the tokens have padding
-        # from the entire original batch
-        mask = lengths_to_mask(lengths, device=tokens.device)
-        return {"logits": self.model(tokens, mask)[0]}
+        attention_mask = torch.arange(tokens.size(1), device=tokens.device).unsqueeze(0) < lengths.unsqueeze(1)
+        outputs = self.model(input_ids=tokens, attention_mask=attention_mask)
+        return {"logits": outputs.logits}
 
     def configure_optimizers(self):
-        """Sets different Learning rates for different parameter groups."""
+        """AdamW on encoder + head with separate encoder LR entry."""
         parameters = [
-            {
-                "params": self.model.parameters(),
-                "lr": self.args.encoder_learning_rate,
-            },
+            {"params": self.model.parameters(), "lr": self.config.get("encoder_learning_rate", 1e-5)},
         ]
-        optimizer = optim.Adam(parameters, lr=self.args.learning_rate)
+        optimizer = optim.AdamW(parameters, lr=self.config.get("learning_rate", 3e-5))
         return [optimizer], []
-
-    @classmethod
-    def add_model_specific_args(cls, parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
-        """Return the argument parser with necessary args for this class appended to it"""
-        return parser
